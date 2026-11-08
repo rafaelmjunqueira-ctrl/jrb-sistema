@@ -68,7 +68,6 @@ export async function salvarAndamento(f: FormData) {
   const id = String(f.get("id"));
   const visivel = f.get("visivel_cliente") === "on";
   const resumo = s(f, "resumo_simples");
-  if (visivel && !resumo) throw new Error("Escreva o resumo antes de liberar ao cliente.");
   await sb.from("andamentos").update({ resumo_simples: resumo, visivel_cliente: visivel }).eq("id", id);
   await auditar(sb, visivel ? "andamento_liberado" : "andamento_ocultado", "andamentos", id);
   revalidatePath(`/escritorio/processos/${String(f.get("processo_id"))}`);

@@ -21,3 +21,21 @@ export const classeStatus: Record<string, string> = {
   aberto: "etq-bordo", em_analise: "", em_execucao: "", aguardando_cliente: "etq-alerta", concluido: "etq-ok", cancelado: "",
   recebida: "etq-bordo", em_triagem: "", triada: "etq-ok", descartada: "",
 };
+
+// Limpa o texto bruto da publicação (DJEN) para leitura do cliente:
+// tira o cabeçalho "Processo nº - Classe - Assunto - Partes -", a linha de advogados e marcações HTML.
+export function limparAndamento(t?: string | null) {
+  if (!t) return "";
+  let s = t.replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  s = s.replace(/\s*-\s*ADV(OGADO)?S?:.*$/i, "").replace(/\s*Advogad[oa]s?:.*$/i, "");
+  s = s.replace(/^Processo\s+[\d.\-]+\s*-\s*/i, "");
+  // Começa no conteúdo do ato quando há cabeçalho (eproc, PJe, tribunais superiores)
+  const ato = s.search(/\b(Vistos|DESPACHO|DECIS[ÃA]O|SENTEN[ÇC]A|ACÓRDÃO|ATO ORDINAT[ÓO]RIO|Intime-se|Intimem-se|Intimação|Intimo|Manifeste-se|Manifestem-se|Ciência|Defiro|Indefiro|Certifico|Fica[m]? intimad|PAUTADO|Pautado|Diante|Trata-se|Recebo|Cite-se|Designo|Redesign)/);
+  if (ato > 0) s = s.slice(ato);
+  else {
+    const partes = s.split(" - ");
+    if (partes.length >= 4 && partes.slice(0, 3).every((p) => p.length < 90)) s = partes.slice(3).join(" - ");
+  }
+  s = s.replace(/Intimado\(s\)\s*\/\s*Citado\(s\).*$/i, "").trim();
+  return s.length > 420 ? s.slice(0, 417).replace(/\s+\S*$/, "") + "…" : s;
+}

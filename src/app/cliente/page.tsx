@@ -6,7 +6,7 @@ import { avaliar, cor, fundo } from "@/lib/saude";
 import { Shell } from "@/components/shell";
 import { Selo } from "@/components/selo";
 import { Janela, SoltarArquivo, Enviar } from "@/components/interativos";
-import { dataBR, dataCurta, diasAte, reais, hojeISO, rotuloChamado, rotuloStatus, classeStatus } from "@/components/util";
+import { dataBR, dataCurta, diasAte, reais, hojeISO, rotuloChamado, rotuloStatus, classeStatus, limparAndamento } from "@/components/util";
 import { enviarIntimacao, abrirChamado } from "./acoes";
 
 export const dynamic = "force-dynamic";
@@ -38,10 +38,12 @@ export default async function PainelCliente({ searchParams }: { searchParams: { 
     ? await sb.from("processos_cliente").select("*").in("id", ids).order("ultima_mov_em", { ascending: false, nullsFirst: false })
     : { data: [] as any[] };
   const { data: movs } = ids.length
-    ? await sb.from("andamentos").select("processo_id,data,resumo_simples").in("processo_id", ids).eq("visivel_cliente", true).order("data", { ascending: false }).limit(300)
+    ? await sb.from("andamentos").select("processo_id,data,resumo_simples,texto_original").in("processo_id", ids).eq("visivel_cliente", true).order("data", { ascending: false }).limit(400)
     : { data: [] as any[] };
-  const linhaDoTempo = new Map<string, { data: string; resumo_simples: string }[]>();
-  for (const m of movs ?? []) { const l = linhaDoTempo.get(m.processo_id) ?? []; if (l.length < 4) l.push(m); linhaDoTempo.set(m.processo_id, l); }
+  type Mov = { processo_id: string; data: string; texto: string };
+  const todos: Mov[] = (movs ?? []).map((m: any) => ({ processo_id: m.processo_id, data: m.data, texto: m.resumo_simples || limparAndamento(m.texto_original) })).filter((m) => m.texto);
+  const linhaDoTempo = new Map<string, Mov[]>();
+  for (const m of todos) { const l = linhaDoTempo.get(m.processo_id) ?? []; if (l.length < 5) l.push(m); linhaDoTempo.set(m.processo_id, l); }
 
   const { sinal, pendencias, ativos } = avaliar(certs ?? [], procs ?? [], vencs ?? [], chamados ?? [], envios ?? []);
   const exposicao = ativos.reduce((s, p) => s + Number(p.exposicao_estimada || 0), 0);
@@ -146,6 +148,22 @@ export default async function PainelCliente({ searchParams }: { searchParams: { 
         </section>
       </div>
 
+      {/* Últimas movimentações */}
+      {!!todos.length && (
+        <section className="folha p-6 mt-6">
+          <h2 className="titulo-secao">Últimas movimentações</h2>
+          <p className="text-sm apoio mt-1">Publicações oficiais dos seus processos, na ordem em que saíram.</p>
+          <ol className="mt-4">{todos.slice(0, 8).map((m, i) => {
+            const p = (procs ?? []).find((x: any) => x.id === m.processo_id);
+            return (
+              <li key={i} className="grid grid-cols-[64px_1fr] gap-4 py-3.5 linha first:border-0">
+                <div className="text-[13px] discreto pt-0.5">{dataCurta(m.data.slice(0, 10))}</div>
+                <div className="min-w-0"><p className="text-[13px] font-semibold" style={{ color: "var(--bordo)" }}>{p?.classe ?? "Processo"} · <span className="numero-cnj font-normal discreto">{p?.numero_cnj}</span></p>
+                  <p className="text-[15px] mt-0.5 max-w-[78ch]">{m.texto}</p></div>
+              </li>);
+          })}</ol>
+        </section>)}
+
       {/* Processos */}
       <section className="mt-6">
         <div className="flex items-baseline justify-between gap-3 mb-3">
@@ -182,8 +200,8 @@ export default async function PainelCliente({ searchParams }: { searchParams: { 
                       <ol className="mt-4 relative pl-5 space-y-3" style={{ borderLeft: "2px solid var(--fio)" }}>
                         {hist.map((m, i) => <li key={i} className="relative">
                           <span className="absolute -left-[27px] top-1.5 w-3 h-3 rounded-full" style={{ background: i === 0 ? "var(--bordo)" : "var(--fio)", border: "2px solid var(--folha)" }} />
-                          <p className="text-[13px] discreto">{dataBR(m.data)}</p><p className="text-[15px]">{m.resumo_simples}</p></li>)}
-                      </ol>) : <p className="text-sm apoio mt-3">O escritório acompanha este processo. As novidades aparecem aqui em linguagem simples.</p>}
+                          <p className="text-[13px] discreto">{dataBR(m.data)}</p><p className="text-[15px] max-w-[72ch]">{m.texto}</p></li>)}
+                      </ol>) : <p className="text-sm apoio mt-3">Sem movimentações publicadas recentemente.</p>}
                   </div>
                 </details>);
             })}

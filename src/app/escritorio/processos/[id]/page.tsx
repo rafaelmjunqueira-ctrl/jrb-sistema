@@ -50,8 +50,8 @@ export default async function Processo({ params }: { params: { id: string } }) {
 
           <section className="folha p-6">
             <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="titulo-secao">Andamentos</h2>
-              <span className="text-sm discreto">{liberados} de {(movs ?? []).length} liberados ao cliente</span></div>
-            <p className="text-sm apoio mt-1">Nada chega ao cliente sem resumo e sem marcar &quot;Mostrar ao cliente&quot;.</p>
+              <span className="text-sm discreto">{liberados} de {(movs ?? []).length} visíveis ao cliente</span></div>
+            <p className="text-sm apoio mt-1">Os andamentos aparecem para o cliente automaticamente. Desmarque &quot;Mostrar ao cliente&quot; só nos que forem sensíveis. O resumo é opcional: sem ele, o cliente lê o texto da publicação já limpo.</p>
             <ol className="mt-4 space-y-4">{(movs ?? []).map((m) => (
               <li key={m.id} className="rounded-xl p-4" style={{ background: m.visivel_cliente ? "var(--ok-fundo)" : "var(--papel)" }}>
                 <p className="text-[13px] font-semibold flex items-center gap-2">{dataBR(m.data)}
@@ -60,7 +60,7 @@ export default async function Processo({ params }: { params: { id: string } }) {
                   <p className="text-sm apoio whitespace-pre-wrap break-words mt-1">{m.texto_original}</p></details>
                 <form action={salvarAndamento} className="grid gap-2 md:grid-cols-[1fr_auto_auto] mt-3 items-center">
                   <input type="hidden" name="id" value={m.id} /><input type="hidden" name="processo_id" value={p.id} />
-                  <input name="resumo_simples" defaultValue={m.resumo_simples ?? ""} className="campo text-sm" placeholder="Resumo em linguagem simples para o cliente" />
+                  <input name="resumo_simples" defaultValue={m.resumo_simples ?? ""} className="campo text-sm" placeholder="Resumo opcional em linguagem simples" />
                   <label className="text-sm flex items-center gap-2 whitespace-nowrap"><input type="checkbox" name="visivel_cliente" defaultChecked={m.visivel_cliente} />Mostrar ao cliente</label>
                   <Enviar className="btn-sec" pendente="…">Salvar</Enviar>
                 </form>
