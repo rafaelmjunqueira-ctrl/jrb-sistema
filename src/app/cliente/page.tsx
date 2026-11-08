@@ -5,6 +5,7 @@ import { usuarioAtual } from "@/lib/supabase/server";
 import { avaliar, cor, fundo } from "@/lib/saude";
 import { Shell } from "@/components/shell";
 import { Selo } from "@/components/selo";
+import { AbasCliente } from "@/components/abas-cliente";
 import { Janela, SoltarArquivo, Enviar } from "@/components/interativos";
 import { dataBR, dataCurta, diasAte, reais, hojeISO, rotuloChamado, rotuloStatus, classeStatus, limparAndamento } from "@/components/util";
 import { enviarIntimacao, abrirChamado } from "./acoes";
@@ -62,6 +63,8 @@ export default async function PainelCliente({ searchParams }: { searchParams: { 
           {empresas.map((e) => <Link key={e.id} href={`/cliente?c=${e.id}`} className="etiqueta !py-1.5 !px-3 !text-[13px]"
             style={e.id === cid ? { background: "var(--bordo)", color: "#fff" } : { background: "var(--folha)", border: "1px solid var(--fio)" }}>{curto(e.nome)}</Link>)}
         </nav>)}>
+
+      <AbasCliente cid={cid} atual="geral" />
 
       {/* Situação */}
       <section className="folha-elevada p-6 sm:p-8 flex flex-col md:flex-row gap-6 md:gap-10 md:items-center">

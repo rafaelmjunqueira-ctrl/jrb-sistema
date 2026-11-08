@@ -4,6 +4,7 @@ import { QrCode, FileText, Receipt, CreditCard, X } from "lucide-react";
 import { usuarioAtual } from "@/lib/supabase/server";
 import { Shell } from "@/components/shell";
 import { Copiar } from "@/components/copiar";
+import { AbasCliente } from "@/components/abas-cliente";
 import { Enviar } from "@/components/interativos";
 import { dataBR, reais, diasAte } from "@/components/util";
 import { rotuloFatura, pago, pixDaCobranca, linhaDigitavel } from "@/lib/asaas";
@@ -31,7 +32,8 @@ export default async function FinanceiroCliente({ searchParams }: { searchParams
   const base = `/cliente/financeiro?c=${atual.id}`;
 
   return (
-    <Shell perfil={perfil} titulo="Financeiro" subtitulo={atual.nome}>
+    <Shell perfil={perfil} titulo={atual.nome} subtitulo="Faturas, boletos e notas fiscais">
+      <AbasCliente cid={atual.id} atual="financeiro" />
       {searchParams.nf === "pendente" && <p className="rounded-xl p-4 mb-5" style={{ background: "var(--alerta-fundo)", color: "var(--alerta)" }}>A nota fiscal desta fatura ainda está sendo emitida. Volte em algumas horas.</p>}
 
       <section className="folha-elevada p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-5">

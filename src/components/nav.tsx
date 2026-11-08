@@ -6,12 +6,16 @@ import { Scale, CalendarClock, FolderOpen, Users, Eye, KeyRound, LogOut, LayoutD
 const ICONES = { hoje: CalendarClock, processos: FolderOpen, clientes: Users, cliente: Eye, painel: LayoutDashboard, financeiro: Wallet } as const;
 export type ItemNav = { href: string; rotulo: string; icone: keyof typeof ICONES };
 
+let itensTemFinanceiroCliente = false;
 function ativo(path: string, href: string) {
-  return href === "/escritorio" || href === "/cliente" ? path === href : path.startsWith(href);
+  if (href === "/escritorio") return path === href;
+  if (href === "/cliente") return path === "/cliente" || (path.startsWith("/cliente/") && !itensTemFinanceiroCliente);
+  return path.startsWith(href);
 }
 
 export function Lateral({ itens, nome, papel }: { itens: ItemNav[]; nome: string; papel: string }) {
   const path = usePathname();
+  itensTemFinanceiroCliente = itens.some((i) => i.href === "/cliente/financeiro");
   return (
     <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 flex-col text-white" style={{ background: "linear-gradient(180deg,#5E1A28 0%,#3E1019 100%)" }}>
       <div className="px-6 pt-7 pb-8">
@@ -44,6 +48,7 @@ export function Lateral({ itens, nome, papel }: { itens: ItemNav[]; nome: string
 
 export function Inferior({ itens }: { itens: ItemNav[] }) {
   const path = usePathname();
+  itensTemFinanceiroCliente = itens.some((i) => i.href === "/cliente/financeiro");
   return (
     <nav className="lg:hidden fixed bottom-0 inset-x-0 z-20 grid border-t" style={{ gridTemplateColumns: `repeat(${itens.length + 1},1fr)`, background: "var(--folha)", borderColor: "var(--fio)", paddingBottom: "env(safe-area-inset-bottom)" }}>
       {[...itens, { href: "/conta", rotulo: "Conta", icone: "painel" as const }].map((i) => {
