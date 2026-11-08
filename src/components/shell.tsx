@@ -7,8 +7,9 @@ export function Shell({ perfil, titulo, subtitulo, acoes, children }: {
   const equipe = perfil.papel !== "cliente";
   const itens: ItemNav[] = equipe
     ? [{ href: "/escritorio", rotulo: "Hoje", icone: "hoje" }, { href: "/escritorio/processos", rotulo: "Processos", icone: "processos" },
-       { href: "/escritorio/clientes", rotulo: "Clientes", icone: "clientes" }, { href: "/cliente", rotulo: "Visão do cliente", icone: "cliente" }]
-    : [{ href: "/cliente", rotulo: "Minha empresa", icone: "painel" }];
+       { href: "/escritorio/clientes", rotulo: "Clientes", icone: "clientes" }, { href: "/escritorio/financeiro", rotulo: "Financeiro", icone: "financeiro" },
+       { href: "/cliente", rotulo: "Visão do cliente", icone: "cliente" }]
+    : [{ href: "/cliente", rotulo: "Minha empresa", icone: "painel" }, { href: "/cliente/financeiro", rotulo: "Financeiro", icone: "financeiro" }];
   return (
     <div className="min-h-screen">
       <Lateral itens={itens} nome={perfil.nome} papel={perfil.papel} />
