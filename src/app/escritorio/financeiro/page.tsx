@@ -5,7 +5,7 @@ import { usuarioAtual } from "@/lib/supabase/server";
 import { Shell } from "@/components/shell";
 import { Enviar } from "@/components/interativos";
 import { dataBR, reais, hojeISO } from "@/components/util";
-import { asaasConfigurado, rotuloFatura, pago } from "@/lib/asaas";
+import { asaasConfigurado, rotuloFatura, pago, descricaoLegivel } from "@/lib/asaas";
 import { sincronizar, sincronizarTodos, novaCobranca } from "./acoes";
 
 export const dynamic = "force-dynamic";
@@ -77,7 +77,7 @@ export default async function Financeiro({ searchParams }: { searchParams: { c?:
               <ul className="divide-y" style={{ borderColor: "var(--fio-2)" }}>{lista.map((f: any) => {
                 const r = rotuloFatura[f.status] ?? { t: f.status, c: "" };
                 return <li key={f.id} className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto] gap-x-4 gap-y-1 items-center px-6 py-3.5" style={{ borderColor: "var(--fio-2)" }}>
-                  <span className="min-w-0"><span className="block font-medium truncate">{atual ? f.descricao ?? "Cobrança" : f.clientes?.nome}</span>
+                  <span className="min-w-0"><span className="block font-medium truncate">{atual ? descricaoLegivel(f.descricao) ?? "Cobrança" : f.clientes?.nome}</span>
                     <span className="text-[13px] discreto">vence {dataBR(f.vencimento)}{f.pago_em ? ` · paga em ${dataBR(f.pago_em)}` : ""}</span></span>
                   <span className="serif font-semibold text-right">{reais(Number(f.valor))}</span>
                   <span className={`etiqueta ${r.c}`}>{r.t}</span>

@@ -12,5 +12,5 @@ export async function verNota(f: FormData) {
   if (fat.nf_pdf) redirect(fat.nf_pdf);
   let url: string | null = null;
   try { url = (await notaDaCobranca(fat.asaas_id))?.pdfUrl ?? null; } catch {}
-  redirect(url ?? `/cliente/financeiro?c=${fat.cliente_id}&nf=pendente`);
+  redirect(url ?? `/cliente/financeiro?c=${fat.cliente_id}&nf=sem`);
 }

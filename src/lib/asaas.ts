@@ -60,7 +60,7 @@ export async function notaDaCobranca(id: string) {
 // Converte a cobrança do Asaas na linha da tabela "faturas"
 export function paraFatura(c: CobrancaAsaas, clienteId: string) {
   return {
-    cliente_id: clienteId, asaas_id: c.id, assinatura_id: c.subscription ?? null, descricao: c.description ?? null,
+    cliente_id: clienteId, asaas_id: c.id, assinatura_id: c.subscription ?? null, descricao: descricaoLegivel(c.description),
     valor: c.value, vencimento: c.dueDate, status: c.status, forma: c.billingType,
     link_pagamento: c.invoiceUrl ?? null, link_boleto: c.bankSlipUrl ?? null,
     pago_em: c.clientPaymentDate ?? c.paymentDate ?? null, atualizado_em: new Date().toISOString(),
@@ -74,3 +74,10 @@ export const rotuloFatura: Record<string, { t: string; c: string }> = {
   DELETED: { t: "Cancelada", c: "" },
 };
 export const pago = (s: string) => ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"].includes(s);
+
+// O Asaas cria "cobranças" automáticas para Pix recebidos fora de uma fatura; mostramos de forma clara
+export function descricaoLegivel(d?: string | null) {
+  if (!d) return null;
+  if (/gerada automaticamente a partir de Pix recebido/i.test(d)) return "Pix recebido";
+  return d;
+}

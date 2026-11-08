@@ -7,7 +7,7 @@ import { Copiar } from "@/components/copiar";
 import { AbasCliente } from "@/components/abas-cliente";
 import { Enviar } from "@/components/interativos";
 import { dataBR, reais, diasAte } from "@/components/util";
-import { rotuloFatura, pago, pixDaCobranca, linhaDigitavel } from "@/lib/asaas";
+import { rotuloFatura, pago, pixDaCobranca, linhaDigitavel, descricaoLegivel } from "@/lib/asaas";
 import { verNota } from "./acoes";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +34,7 @@ export default async function FinanceiroCliente({ searchParams }: { searchParams
   return (
     <Shell perfil={perfil} titulo={atual.nome} subtitulo="Faturas, boletos e notas fiscais">
       <AbasCliente cid={atual.id} atual="financeiro" />
-      {searchParams.nf === "pendente" && <p className="rounded-xl p-4 mb-5" style={{ background: "var(--alerta-fundo)", color: "var(--alerta)" }}>A nota fiscal desta fatura ainda está sendo emitida. Volte em algumas horas.</p>}
+      {searchParams.nf === "sem" && <p className="rounded-xl p-4 mb-5" style={{ background: "var(--alerta-fundo)", color: "var(--alerta)" }}>Ainda não há nota fiscal emitida para este pagamento. Se precisar dela, peça ao escritório.</p>}
 
       <section className="folha-elevada p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
         <div><p className="apoio">{abertas.length ? "Em aberto" : "Situação"}</p>
@@ -65,7 +65,7 @@ export default async function FinanceiroCliente({ searchParams }: { searchParams
             const r = rotuloFatura[f.status] ?? { t: f.status, c: "" }; const d = diasAte(f.vencimento);
             return <li key={f.id} className="folha p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div><p className="font-semibold text-[15px]">{f.descricao ?? "Honorários"}</p>
+                <div><p className="font-semibold text-[15px]">{descricaoLegivel(f.descricao) ?? "Honorários"}</p>
                   <p className="text-[13px] discreto">{f.status === "OVERDUE" ? `venceu em ${dataBR(f.vencimento)}` : d === 0 ? "vence hoje" : `vence em ${dataBR(f.vencimento)}`}</p></div>
                 <div className="text-right"><p className="serif text-[22px] font-semibold leading-none">{reais(Number(f.valor))}</p><span className={`etiqueta mt-1.5 ${r.c}`}>{r.t}</span></div>
               </div>
@@ -84,7 +84,7 @@ export default async function FinanceiroCliente({ searchParams }: { searchParams
         {!pagas.length ? <div className="folha p-6 apoio">Nenhum pagamento registrado ainda.</div> :
           <ul className="folha divide-y" style={{ borderColor: "var(--fio-2)" }}>{pagas.map((f) =>
             <li key={f.id} className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2 items-center px-5 py-3.5" style={{ borderColor: "var(--fio-2)" }}>
-              <span className="min-w-0"><span className="block font-medium truncate">{f.descricao ?? "Honorários"}</span>
+              <span className="min-w-0"><span className="block font-medium truncate">{descricaoLegivel(f.descricao) ?? "Honorários"}</span>
                 <span className="text-[13px] discreto">paga em {dataBR(f.pago_em ?? f.vencimento)}</span></span>
               <span className="serif font-semibold">{reais(Number(f.valor))}</span>
               <form action={verNota} className="col-span-2 sm:col-span-1"><input type="hidden" name="id" value={f.id} />
