@@ -7,9 +7,10 @@ export function Shell({ perfil, titulo, subtitulo, acoes, children }: {
   const equipe = perfil.papel !== "cliente";
   const itens: ItemNav[] = equipe
     ? [{ href: "/escritorio", rotulo: "Hoje", icone: "hoje" }, { href: "/escritorio/processos", rotulo: "Processos", icone: "processos" },
-       { href: "/escritorio/clientes", rotulo: "Clientes", icone: "clientes" }, { href: "/escritorio/financeiro", rotulo: "Financeiro", icone: "financeiro" },
+       { href: "/escritorio/clientes", rotulo: "Clientes", icone: "clientes" },
+       { href: "/escritorio/licitacoes", rotulo: "Licitações", icone: "licitacoes" }, { href: "/escritorio/financeiro", rotulo: "Financeiro", icone: "financeiro" },
        { href: "/cliente", rotulo: "Visão do cliente", icone: "cliente" }]
-    : [{ href: "/cliente", rotulo: "Minha empresa", icone: "painel" }, { href: "/cliente/financeiro", rotulo: "Financeiro", icone: "financeiro" }];
+    : [{ href: "/cliente", rotulo: "Minha empresa", icone: "painel" }, { href: "/cliente/licitacoes", rotulo: "Licitações", icone: "licitacoes" }, { href: "/cliente/financeiro", rotulo: "Financeiro", icone: "financeiro" }];
   return (
     <div className="min-h-screen">
       <Lateral itens={itens} nome={perfil.nome} papel={perfil.papel} />
@@ -27,7 +28,12 @@ export function Shell({ perfil, titulo, subtitulo, acoes, children }: {
         </header>
         <main className="px-4 sm:px-8 pb-28 lg:pb-14 max-w-[1240px]">{children}</main>
       </div>
-      <Inferior itens={itens} />
+      <Inferior itens={equipe
+        ? [{ href: "/escritorio", rotulo: "Hoje", icone: "hoje" }, { href: "/escritorio/processos", rotulo: "Processos", icone: "processos" },
+           { href: "/escritorio/licitacoes", rotulo: "Licitações", icone: "licitacoes" }, { href: "/escritorio/financeiro", rotulo: "Financeiro", icone: "financeiro" },
+           { href: "/mais", rotulo: "Mais", icone: "mais" }]
+        : [{ href: "/cliente", rotulo: "Empresa", icone: "painel" }, { href: "/cliente/licitacoes", rotulo: "Licitações", icone: "licitacoes" },
+           { href: "/cliente/financeiro", rotulo: "Financeiro", icone: "financeiro" }, { href: "/conta", rotulo: "Conta", icone: "conta" }]} />
     </div>
   );
 }

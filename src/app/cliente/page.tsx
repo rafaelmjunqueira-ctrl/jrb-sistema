@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ChevronRight, Gavel, ShieldCheck, CalendarDays, FileUp, MessageSquarePlus, Building2, ArrowUpRight, ArrowDownLeft, Circle } from "lucide-react";
+import { ChevronRight, Landmark, BellDot, Gavel, ShieldCheck, CalendarDays, FileUp, MessageSquarePlus, Building2, ArrowUpRight, ArrowDownLeft, Circle } from "lucide-react";
 import { usuarioAtual } from "@/lib/supabase/server";
 import { avaliar, cor, fundo } from "@/lib/saude";
 import { Shell } from "@/components/shell";
@@ -9,6 +9,7 @@ import { AbasCliente } from "@/components/abas-cliente";
 import { Janela, SoltarArquivo, Enviar } from "@/components/interativos";
 import { dataBR, dataCurta, diasAte, reais, hojeISO, rotuloChamado, rotuloStatus, classeStatus, limparAndamento } from "@/components/util";
 import { enviarIntimacao, abrirChamado } from "./acoes";
+import { semAcento } from "@/lib/areas";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,26 @@ export default async function PainelCliente({ searchParams }: { searchParams: { 
   const linhaDoTempo = new Map<string, Mov[]>();
   for (const m of todos) { const l = linhaDoTempo.get(m.processo_id) ?? []; if (l.length < 5) l.push(m); linhaDoTempo.set(m.processo_id, l); }
 
+  // Licitações: novidades nas preferências e alterações nos editais acompanhados
+  const [{ data: pref }, { data: acs }] = await Promise.all([
+    sb.from("licitacao_preferencias").select("*").eq("cliente_id", cid).maybeSingle(),
+    sb.from("edital_acompanhamentos").select("edital_id,visto_em,status").eq("cliente_id", cid),
+  ]);
+  let novasLic = 0;
+  if (pref && pref.areas.length + pref.palavras.length > 0) {
+    const ou = (t: string[]) => (t.length ? t.map((x: string) => `"${semAcento(x).replace(/"/g, "")}"`).join(" or ") : null);
+    const { data: r } = await sb.rpc("buscar_editais", { p_q: ou(pref.palavras), p_areas: pref.areas.length ? pref.areas : null, p_qualquer: true,
+      p_ufs: pref.ufs.length ? pref.ufs : null, p_modalidades: pref.modalidades.length ? pref.modalidades : null, p_valor_min: pref.valor_min, p_valor_max: pref.valor_max,
+      p_excluir: ou(pref.excluir), p_desde: pref.ultima_visita ?? new Date(Date.now() - 86400000).toISOString(), p_limite: 1 });
+    novasLic = Number(r?.[0]?.total ?? 0);
+  }
+  let alteradas = 0;
+  if (acs?.length) {
+    const { data: evs } = await sb.from("edital_eventos").select("edital_id,criado_em").in("edital_id", acs.map((a) => a.edital_id));
+    alteradas = new Set((evs ?? []).filter((v) => { const a = acs.find((x) => x.edital_id === v.edital_id); return a && new Date(v.criado_em) > new Date(a.visto_em); }).map((v) => v.edital_id)).size;
+  }
+  const acompAtivos = (acs ?? []).filter((a) => !["descartado", "ganhamos"].includes(a.status)).length;
+
   const { sinal, pendencias, ativos } = avaliar(certs ?? [], procs ?? [], vencs ?? [], chamados ?? [], envios ?? []);
   const exposicao = ativos.reduce((s, p) => s + Number(p.exposicao_estimada || 0), 0);
   const proximo = (vencs ?? [])[0];
@@ -61,7 +82,7 @@ export default async function PainelCliente({ searchParams }: { searchParams: { 
       acoes={empresas.length > 1 && (
         <nav aria-label="Empresas" className="flex flex-wrap gap-1.5">
           {empresas.map((e) => <Link key={e.id} href={`/cliente?c=${e.id}`} className="etiqueta !py-1.5 !px-3 !text-[13px]"
-            style={e.id === cid ? { background: "var(--bordo)", color: "#fff" } : { background: "var(--folha)", border: "1px solid var(--fio)" }}>{curto(e.nome)}</Link>)}
+            style={e.id === cid ? { background: "var(--bordo)", color: "var(--sobre-bordo)" } : { background: "var(--folha)", border: "1px solid var(--fio)" }}>{curto(e.nome)}</Link>)}
         </nav>)}>
 
       <AbasCliente cid={cid} atual="geral" />
@@ -78,6 +99,17 @@ export default async function PainelCliente({ searchParams }: { searchParams: { 
           </dl>
         </div>
       </section>
+
+      {/* Licitações */}
+      <Link href={`/cliente/licitacoes?c=${cid}${pref ? "&modo=pref" : ""}`} className="folha mt-6 p-5 flex flex-wrap items-center gap-4 hover:border-[var(--tinta-3)]">
+        <span className="w-11 h-11 rounded-full grid place-items-center shrink-0" style={{ background: "var(--bordo-claro)", color: "var(--bordo)" }}><Landmark size={20} /></span>
+        <span className="flex-1 min-w-[200px]">
+          <span className="block font-semibold text-[16px]">{!pref ? "Encontre licitações para a sua empresa" : novasLic ? `${novasLic} edita${novasLic === 1 ? "l novo" : "is novos"} para a sua empresa` : "Licitações para a sua empresa"}</span>
+          <span className="block text-sm apoio">{!pref ? "Defina áreas e estados e receba os editais do país todos os dias." : `${acompAtivos} acompanhado${acompAtivos === 1 ? "" : "s"}${alteradas ? "" : " · nenhuma alteração nova"}`}</span>
+        </span>
+        {alteradas > 0 && <span className="etiqueta etq-alerta"><BellDot size={12} />{alteradas} com alteração</span>}
+        <ChevronRight size={18} className="discreto" />
+      </Link>
 
       <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr] mt-6">
         {/* O que precisa de você */}

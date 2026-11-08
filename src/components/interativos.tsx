@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Loader2, UploadCloud, X, FileText } from "lucide-react";
 
@@ -50,4 +50,21 @@ export function SoltarArquivo({ nome = "arquivo" }: { nome?: string }) {
           <span className="text-xs discreto">ou clique para escolher · até 15 MB</span></>}
     </label>
   );
+}
+
+// <details> que fica sempre aberto em telas largas (filtros na lateral) e recolhível no celular
+export function PainelRecolhivel({ resumo, children, abertoNoCelular }: { resumo: React.ReactNode; children: React.ReactNode; abertoNoCelular?: boolean }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const ajusta = () => { if (ref.current && mq.matches) ref.current.open = true; };
+    ajusta(); mq.addEventListener("change", ajusta); return () => mq.removeEventListener("change", ajusta);
+  }, []);
+  return <details ref={ref} className="folha" open={abertoNoCelular || undefined}>
+    <summary className="flex items-center justify-between px-5 py-4 lg:pointer-events-none">{resumo}</summary>{children}</details>;
+}
+
+// Envia o formulário assim que o valor do select muda
+export function SelectEnvia(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select {...props} onChange={(e) => e.currentTarget.form?.requestSubmit()} />;
 }

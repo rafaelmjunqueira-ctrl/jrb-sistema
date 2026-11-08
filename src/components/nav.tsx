@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Scale, CalendarClock, FolderOpen, Users, Eye, KeyRound, LogOut, LayoutDashboard, Wallet } from "lucide-react";
+import { Scale, CalendarClock, FolderOpen, Users, Eye, KeyRound, LogOut, LayoutDashboard, Wallet, Landmark, Menu } from "lucide-react";
 
-const ICONES = { hoje: CalendarClock, processos: FolderOpen, clientes: Users, cliente: Eye, painel: LayoutDashboard, financeiro: Wallet } as const;
+const ICONES = { hoje: CalendarClock, processos: FolderOpen, clientes: Users, cliente: Eye, painel: LayoutDashboard, financeiro: Wallet, licitacoes: Landmark, mais: Menu, conta: KeyRound } as const;
 export type ItemNav = { href: string; rotulo: string; icone: keyof typeof ICONES };
 
 let itensTemFinanceiroCliente = false;
@@ -50,11 +50,11 @@ export function Inferior({ itens }: { itens: ItemNav[] }) {
   const path = usePathname();
   itensTemFinanceiroCliente = itens.some((i) => i.href === "/cliente/financeiro");
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-20 grid border-t" style={{ gridTemplateColumns: `repeat(${itens.length + 1},1fr)`, background: "var(--folha)", borderColor: "var(--fio)", paddingBottom: "env(safe-area-inset-bottom)" }}>
-      {[...itens, { href: "/conta", rotulo: "Conta", icone: "painel" as const }].map((i) => {
-        const Icone = i.href === "/conta" ? KeyRound : ICONES[i.icone]; const on = ativo(path, i.href);
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-20 grid border-t" style={{ gridTemplateColumns: `repeat(${itens.length},1fr)`, background: "var(--folha)", borderColor: "var(--fio)", paddingBottom: "env(safe-area-inset-bottom)" }}>
+      {itens.map((i) => {
+        const Icone = ICONES[i.icone]; const on = ativo(path, i.href);
         return (
-          <Link key={i.href} href={i.href} className="flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium"
+          <Link key={i.href} href={i.href} aria-current={on ? "page" : undefined} className="flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium"
             style={{ color: on ? "var(--bordo)" : "var(--tinta-3)" }}>
             <Icone size={20} strokeWidth={on ? 2.2 : 1.8} />{i.rotulo}
           </Link>);

@@ -1,0 +1,7 @@
+{
+  "regions": ["gru1"],
+  "crons": [
+    { "path": "/api/coleta", "schedule": "10 9 * * *" },
+    { "path": "/api/coleta", "schedule": "10 21 * * *" }
+  ]
+}

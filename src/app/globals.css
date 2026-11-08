@@ -20,13 +20,14 @@
   --alerta: #A86B12; --alerta-fundo: #FBF0DC;
   --risco: #B42318; --risco-fundo: #FCE9E7;
   --sombra: 0 1px 2px rgba(27,42,58,.06), 0 8px 24px -12px rgba(27,42,58,.18);
+  --sobre-bordo: #FFFFFF;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --papel: #10161D; --folha: #17202A; --tinta: #E7ECF1; --tinta-2: #A9B4C0; --tinta-3: #7E8A97;
     --fio: #26323F; --fio-2: #1D2732; --bordo: #C9667A; --bordo-2: #DD8193; --bordo-claro: #2A1A20;
     --ouro: #D2B06A; --ok: #5CC296; --ok-fundo: #15291F; --alerta: #E3A64B; --alerta-fundo: #2C2212;
-    --risco: #F2877A; --risco-fundo: #2E1716; --sombra: 0 1px 2px rgba(0,0,0,.3);
+    --risco: #F2877A; --risco-fundo: #2E1716; --sombra: 0 1px 2px rgba(0,0,0,.3); --sobre-bordo: #1A0E12;
   }
 }
 
@@ -48,7 +49,7 @@ h1, h2, h3 { text-wrap: balance; }
   .apoio { color: var(--tinta-2); }
   .discreto { color: var(--tinta-3); }
   .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors disabled:opacity-60;
-    background: var(--bordo); color: #fff; }
+    background: var(--bordo); color: var(--sobre-bordo); }
   .btn:hover { background: var(--bordo-2); }
   .btn-sec { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors;
     border: 1px solid var(--fio); background: var(--folha); color: var(--tinta); }
