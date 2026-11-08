@@ -1,8 +1,12 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { ChevronRight, Gavel, ShieldCheck, CalendarDays, FileUp, MessageSquarePlus, Building2, ArrowUpRight, ArrowDownLeft, Circle } from "lucide-react";
 import { usuarioAtual } from "@/lib/supabase/server";
-import { saudeJuridica, corSinal, rotuloSinal } from "@/lib/saude";
-import { Topo, dataBR, rotuloChamado, rotuloStatus } from "@/components";
+import { avaliar, cor, fundo } from "@/lib/saude";
+import { Shell } from "@/components/shell";
+import { Selo } from "@/components/selo";
+import { Janela, SoltarArquivo, Enviar } from "@/components/interativos";
+import { dataBR, dataCurta, diasAte, reais, hojeISO, rotuloChamado, rotuloStatus, classeStatus } from "@/components/util";
 import { enviarIntimacao, abrirChamado } from "./acoes";
 
 export const dynamic = "force-dynamic";
@@ -11,155 +15,206 @@ export default async function PainelCliente({ searchParams }: { searchParams: { 
   const { sb, user, perfil } = await usuarioAtual();
   if (!user || !perfil) redirect("/login");
 
-  // Empresas que este usuário acompanha (equipe vê todas — útil para conferir a visão do cliente)
-  const { data: empresas } = await sb.from("clientes").select("id,nome,documento").eq("ativo", true).order("nome");
+  const { data: empresas } = await sb.from("clientes").select("id,nome,documento,tipo").eq("ativo", true).order("nome");
   if (!empresas?.length) {
-    return <main className="max-w-3xl mx-auto px-4"><Topo nome={perfil.nome} area="Painel do cliente" />
-      <div className="card">Seu acesso ainda não foi vinculado a nenhuma empresa. Fale com a JRB.</div></main>;
+    return <Shell perfil={perfil} titulo="Sua empresa">
+      <div className="folha p-8 max-w-xl"><p className="titulo-secao">Seu acesso está quase pronto</p>
+        <p className="apoio mt-2">Ainda não vinculamos nenhuma empresa ao seu usuário. Fale com a JRB para concluir.</p></div></Shell>;
   }
   const atual = empresas.find((e) => e.id === searchParams.c) ?? empresas[0];
   const cid = atual.id;
+  const hoje = hojeISO();
 
   const [{ data: vinculos }, { data: certs }, { data: vencs }, { data: chamados }, { data: envios }] = await Promise.all([
     sb.from("processo_clientes").select("polo, processo_id").eq("cliente_id", cid),
     sb.from("certidoes").select("tipo,orgao,situacao,validade").eq("cliente_id", cid).order("validade"),
-    sb.from("vencimentos").select("tipo,descricao,data").eq("cliente_id", cid)
-      .gte("data", new Date().toISOString().slice(0, 10)).order("data").limit(8),
-    sb.from("chamados").select("id,tipo,titulo,status,criado_em").eq("cliente_id", cid).order("criado_em", { ascending: false }).limit(6),
-    sb.from("intimacoes_enviadas").select("id,observacao,status,retorno_cliente,criado_em").eq("cliente_id", cid)
-      .order("criado_em", { ascending: false }).limit(5),
+    sb.from("vencimentos").select("tipo,descricao,data").eq("cliente_id", cid).gte("data", hoje).order("data").limit(10),
+    sb.from("chamados").select("id,tipo,titulo,status,criado_em").eq("cliente_id", cid).order("criado_em", { ascending: false }).limit(8),
+    sb.from("intimacoes_enviadas").select("id,observacao,status,retorno_cliente,criado_em").eq("cliente_id", cid).order("criado_em", { ascending: false }).limit(6),
   ]);
-
-  const ids = (vinculos ?? []).map((v) => v.processo_id);
+  const polo = new Map((vinculos ?? []).map((v) => [v.processo_id, v.polo]));
+  const ids = Array.from(polo.keys());
   const { data: procs } = ids.length
     ? await sb.from("processos_cliente").select("*").in("id", ids).order("ultima_mov_em", { ascending: false, nullsFirst: false })
     : { data: [] as any[] };
   const { data: movs } = ids.length
-    ? await sb.from("andamentos").select("processo_id,data,resumo_simples").in("processo_id", ids)
-        .eq("visivel_cliente", true).order("data", { ascending: false }).limit(60)
+    ? await sb.from("andamentos").select("processo_id,data,resumo_simples").in("processo_id", ids).eq("visivel_cliente", true).order("data", { ascending: false }).limit(300)
     : { data: [] as any[] };
-  const ultimo = new Map<string, { data: string; resumo_simples: string }>();
-  for (const m of movs ?? []) if (!ultimo.has(m.processo_id)) ultimo.set(m.processo_id, m);
+  const linhaDoTempo = new Map<string, { data: string; resumo_simples: string }[]>();
+  for (const m of movs ?? []) { const l = linhaDoTempo.get(m.processo_id) ?? []; if (l.length < 4) l.push(m); linhaDoTempo.set(m.processo_id, l); }
 
-  const saude = saudeJuridica(certs ?? [], procs ?? [], vencs ?? []);
-  const ativos = (procs ?? []).filter((p) => p.situacao !== "arquivado" && p.situacao !== "baixado");
+  const { sinal, pendencias, ativos } = avaliar(certs ?? [], procs ?? [], vencs ?? [], chamados ?? [], envios ?? []);
   const exposicao = ativos.reduce((s, p) => s + Number(p.exposicao_estimada || 0), 0);
+  const proximo = (vencs ?? [])[0];
+  const encerrados = (procs ?? []).length - ativos.length;
+  const nAcao = pendencias.filter((p) => p.sinal !== "verde").length;
+  const frase = sinal === "verde" ? "Nenhuma pendência jurídica pede sua atenção agora."
+    : sinal === "amarelo" ? `${nAcao === 1 ? "Há um ponto" : `Há ${nAcao} pontos`} para acompanhar nos próximos dias.`
+    : `${nAcao === 1 ? "Um ponto precisa" : `${nAcao} pontos precisam`} de ação.`;
 
   return (
-    <main className="max-w-6xl mx-auto px-4 pb-16">
-      <Topo nome={perfil.nome} area="Painel do cliente" equipe={perfil.papel !== "cliente"} />
+    <Shell perfil={perfil} titulo={atual.nome}
+      subtitulo={<span className="inline-flex items-center gap-1.5"><Building2 size={15} />{atual.tipo === "PJ" ? "CNPJ" : "CPF"} {fmtDoc(atual.documento)}</span>}
+      acoes={empresas.length > 1 && (
+        <nav aria-label="Empresas" className="flex flex-wrap gap-1.5">
+          {empresas.map((e) => <Link key={e.id} href={`/cliente?c=${e.id}`} className="etiqueta !py-1.5 !px-3 !text-[13px]"
+            style={e.id === cid ? { background: "var(--bordo)", color: "#fff" } : { background: "var(--folha)", border: "1px solid var(--fio)" }}>{curto(e.nome)}</Link>)}
+        </nav>)}>
 
-      {empresas.length > 1 && (
-        <nav className="flex flex-wrap gap-2 mb-4">
-          {empresas.map((e) => (
-            <Link key={e.id} href={`/cliente?c=${e.id}`} className="pill"
-              style={e.id === cid ? { background: "var(--brand)", color: "var(--bg)" } : {}}>{e.nome}</Link>
-          ))}
-        </nav>
-      )}
-
-      {/* Saúde jurídica */}
-      <section className="card grid gap-4 md:grid-cols-[auto_1fr_auto_auto] items-center">
-        <div className="w-16 h-16 rounded-full grid place-items-center text-white font-bold"
-          style={{ background: corSinal[saude.sinal] }} aria-label={rotuloSinal[saude.sinal]}>●</div>
-        <div>
-          <p className="text-xs muted uppercase tracking-wider">Saúde jurídica · {atual.nome}</p>
-          <p className="text-2xl font-semibold" style={{ color: corSinal[saude.sinal] }}>{rotuloSinal[saude.sinal]}</p>
-          <ul className="text-sm muted mt-1">
-            {saude.motivos.length ? saude.motivos.slice(0, 4).map((m, i) => <li key={i}>• {m.texto}</li>)
-              : <li>Nenhuma pendência identificada.</li>}
-          </ul>
+      {/* Situação */}
+      <section className="folha-elevada p-6 sm:p-8 flex flex-col md:flex-row gap-6 md:gap-10 md:items-center">
+        <Selo sinal={sinal} data={new Date().toLocaleDateString("pt-BR")} />
+        <div className="flex-1 min-w-0">
+          <p className="serif text-[24px] sm:text-[28px] leading-snug font-medium" style={{ color: "var(--tinta)" }}>{frase}</p>
+          <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+            <Fato rotulo="Processos em andamento" valor={String(ativos.length)} nota={encerrados ? `${encerrados} encerrado${encerrados > 1 ? "s" : ""}` : undefined} />
+            <Fato rotulo="Exposição estimada" valor={exposicao ? reais(exposicao) : "Em avaliação"} nota="Soma dos processos em que há risco de pagar" />
+            <Fato rotulo="Próximo compromisso" valor={proximo ? dataCurta(proximo.data) : "Nenhum"} nota={proximo?.descricao} />
+          </dl>
         </div>
-        <Kpi rotulo="Processos ativos" valor={String(ativos.length)} />
-        <Kpi rotulo="Exposição estimada" valor={exposicao ? exposicao.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"} />
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-3 mt-4">
-        {/* Processos */}
-        <section className="card lg:col-span-2">
-          <h2 className="font-semibold mb-3">Seus processos</h2>
-          {!procs?.length && <p className="muted text-sm">Nenhum processo vinculado ainda.</p>}
-          <ul className="divide-y" style={{ borderColor: "var(--line)" }}>
-            {(procs ?? []).map((p) => {
-              const u = ultimo.get(p.id);
+      <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr] mt-6">
+        {/* O que precisa de você */}
+        <section className="folha p-6">
+          <h2 className="titulo-secao">O que precisa de você</h2>
+          {!pendencias.length ? (
+            <div className="flex items-center gap-3 mt-4 p-4 rounded-xl" style={{ background: "var(--ok-fundo)", color: "var(--ok)" }}>
+              <ShieldCheck size={22} /><p className="text-[15px] font-medium">Tudo em ordem. Avisaremos aqui quando algo depender de você.</p></div>
+          ) : (
+            <ul className="mt-4 space-y-2.5">{pendencias.slice(0, 6).map((p, i) => (
+              <li key={i} className="flex gap-3 p-3.5 rounded-xl" style={{ background: fundo[p.sinal] }}>
+                <Circle size={10} fill={cor[p.sinal]} stroke="none" className="mt-1.5 shrink-0" />
+                <div className="min-w-0"><p className="font-semibold text-[15px]">{p.titulo}</p><p className="text-sm apoio">{p.detalhe}</p></div>
+              </li>))}</ul>
+          )}
+          <div className="flex flex-wrap gap-2 mt-6">
+            <Janela rotulo="Recebi uma intimação" icone={<FileUp size={17} />} titulo="Enviar intimação ou citação"
+              descricao="Mande o documento como chegou. Respondemos por aqui, em geral no mesmo dia útil.">
+              <form action={enviarIntimacao} className="space-y-4">
+                <input type="hidden" name="cliente_id" value={cid} />
+                <SoltarArquivo />
+                <div><label className="rotulo" htmlFor="obs">Como chegou e quando</label>
+                  <textarea id="obs" name="observacao" rows={3} className="campo" placeholder="Ex.: oficial de justiça entregou hoje à tarde na recepção" /></div>
+                <Enviar pendente="Enviando…">Enviar ao escritório</Enviar>
+              </form>
+            </Janela>
+            <Janela rotulo="Pedir ao escritório" classeBotao="btn-sec" icone={<MessageSquarePlus size={17} />} titulo="Novo pedido à JRB"
+              descricao="Impugnação, recurso, mandado de segurança ou uma dúvida. Informe o prazo, se houver.">
+              <form action={abrirChamado} className="grid gap-4 sm:grid-cols-2">
+                <input type="hidden" name="cliente_id" value={cid} />
+                <div><label className="rotulo" htmlFor="tipo">Tipo de pedido</label>
+                  <select id="tipo" name="tipo" className="campo" defaultValue="consulta">
+                    {Object.entries(rotuloChamado).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+                <div><label className="rotulo" htmlFor="prazo">Prazo (se houver)</label><input id="prazo" name="prazo" type="date" className="campo" /></div>
+                <div className="sm:col-span-2"><label className="rotulo" htmlFor="titulo">Assunto</label>
+                  <input id="titulo" name="titulo" required className="campo" placeholder="Ex.: Pregão 90012/2026 exige atestado indevido" /></div>
+                <div className="sm:col-span-2"><label className="rotulo" htmlFor="ref">Número do edital, processo ou contrato</label>
+                  <input id="ref" name="referencia" className="campo" /></div>
+                <div className="sm:col-span-2"><label className="rotulo" htmlFor="desc">Detalhes</label>
+                  <textarea id="desc" name="descricao" rows={3} className="campo" /></div>
+                <div className="sm:col-span-2"><Enviar pendente="Enviando…">Enviar pedido</Enviar></div>
+              </form>
+            </Janela>
+          </div>
+        </section>
+
+        {/* Agenda */}
+        <section className="folha p-6">
+          <h2 className="titulo-secao flex items-center gap-2"><CalendarDays size={19} strokeWidth={1.8} />Agenda</h2>
+          {!vencs?.length ? <p className="apoio mt-4 text-[15px]">Sem audiências ou vencimentos marcados.</p> :
+            <ol className="mt-4 space-y-0">{vencs.map((v, i) => {
+              const d = diasAte(v.data);
               return (
-                <li key={p.id} className="py-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-sm">{p.numero_cnj}</span>
-                    <span className="pill">{p.tribunal ?? "—"}</span>
-                    <span className="pill" style={{ color: p.risco === "alto" ? "var(--bad)" : p.risco === "medio" ? "var(--warn)" : "var(--muted)" }}>
-                      risco {p.risco}</span>
+                <li key={i} className="grid grid-cols-[56px_1fr] gap-3 py-3 linha first:border-0">
+                  <div className="text-center rounded-lg py-1.5" style={{ background: d <= 3 ? "var(--bordo-claro)" : "var(--papel)" }}>
+                    <div className="serif text-[20px] font-semibold leading-none" style={{ color: d <= 3 ? "var(--bordo)" : "var(--tinta)" }}>{v.data.slice(8, 10)}</div>
+                    <div className="text-[11px] discreto mt-0.5">{dataCurta(v.data).split(" ")[2] ?? dataCurta(v.data).slice(-3)}</div>
                   </div>
-                  <p className="text-sm mt-1">{p.resumo_cliente ?? p.classe ?? ""}</p>
-                  {u && <p className="text-sm muted mt-1">Último andamento ({dataBR(u.data)}): {u.resumo_simples}</p>}
-                </li>
-              );
+                  <div className="min-w-0"><p className="font-medium text-[15px]">{v.descricao}</p>
+                    <p className="text-sm discreto">{d === 0 ? "Hoje" : d === 1 ? "Amanhã" : `Em ${d} dias`}</p></div>
+                </li>);
+            })}</ol>}
+          <h3 className="font-semibold text-[15px] mt-7 mb-2">Certidões</h3>
+          {!certs?.length ? <p className="text-sm apoio">O monitoramento automático das certidões (federal, FGTS, trabalhista, estadual e municipal) entra na próxima etapa.</p> :
+            <ul className="space-y-2">{certs.map((c, i) => {
+              const venc = c.validade ? diasAte(c.validade) : 99;
+              const cls = (c.situacao ?? "").toLowerCase().startsWith("positiva") && !(c.situacao ?? "").includes("efeito") || venc < 0 ? "etq-risco" : venc <= 30 ? "etq-alerta" : "etq-ok";
+              return <li key={i} className="flex items-center justify-between gap-3 text-sm"><span>{c.tipo}</span>
+                <span className={`etiqueta ${cls}`}>{venc < 0 ? "vencida" : `válida até ${dataBR(c.validade)}`}</span></li>;
+            })}</ul>}
+        </section>
+      </div>
+
+      {/* Processos */}
+      <section className="mt-6">
+        <div className="flex items-baseline justify-between gap-3 mb-3">
+          <h2 className="titulo-secao flex items-center gap-2"><Gavel size={19} strokeWidth={1.8} />Seus processos</h2>
+          <span className="text-sm discreto">{(procs ?? []).length} no total</span>
+        </div>
+        {!procs?.length ? <div className="folha p-6 apoio">Nenhum processo vinculado à empresa.</div> :
+          <div className="folha divide-y" style={{ borderColor: "var(--fio-2)" }}>
+            {procs.map((p) => {
+              const pl = polo.get(p.id); const hist = linhaDoTempo.get(p.id) ?? [];
+              const enc = p.situacao === "arquivado" || p.situacao === "baixado";
+              return (
+                <details key={p.id} className="group" style={{ borderColor: "var(--fio-2)" }}>
+                  <summary className="grid grid-cols-[auto_1fr_auto] gap-3 sm:gap-4 items-center px-4 sm:px-5 py-4 hover:bg-[var(--papel)]">
+                    <span className="w-9 h-9 rounded-full grid place-items-center shrink-0" title={pl === "ativo" ? "Sua empresa é autora" : pl === "passivo" ? "Sua empresa é ré" : "Processo"}
+                      style={{ background: enc ? "var(--fio-2)" : "var(--bordo-claro)", color: enc ? "var(--tinta-3)" : "var(--bordo)" }}>
+                      {pl === "ativo" ? <ArrowUpRight size={17} /> : pl === "passivo" ? <ArrowDownLeft size={17} /> : <Gavel size={16} />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block font-semibold text-[15px] truncate">{p.resumo_cliente ? p.resumo_cliente.split(".")[0] : p.classe ?? "Processo"}</span>
+                      <span className="block text-[13px] discreto truncate numero-cnj">{p.numero_cnj} · {p.tribunal}{p.ultima_mov_em ? ` · movimentado em ${dataBR(p.ultima_mov_em)}` : ""}</span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      {enc ? <span className="etiqueta">Encerrado</span> : p.risco !== "indefinido" &&
+                        <span className={`etiqueta hidden sm:inline-flex ${p.risco === "alto" ? "etq-risco" : p.risco === "medio" ? "etq-alerta" : "etq-ok"}`}>
+                          Risco {p.risco === "medio" ? "médio" : p.risco}</span>}
+                      <ChevronRight size={18} className="gira discreto" />
+                    </span>
+                  </summary>
+                  <div className="px-4 sm:px-5 pb-5 sm:pl-[72px]">
+                    {p.resumo_cliente && <p className="text-[15px] max-w-[68ch]">{p.resumo_cliente}</p>}
+                    <p className="text-sm discreto mt-1">{p.orgao_julgador}</p>
+                    {hist.length ? (
+                      <ol className="mt-4 relative pl-5 space-y-3" style={{ borderLeft: "2px solid var(--fio)" }}>
+                        {hist.map((m, i) => <li key={i} className="relative">
+                          <span className="absolute -left-[27px] top-1.5 w-3 h-3 rounded-full" style={{ background: i === 0 ? "var(--bordo)" : "var(--fio)", border: "2px solid var(--folha)" }} />
+                          <p className="text-[13px] discreto">{dataBR(m.data)}</p><p className="text-[15px]">{m.resumo_simples}</p></li>)}
+                      </ol>) : <p className="text-sm apoio mt-3">O escritório acompanha este processo. As novidades aparecem aqui em linguagem simples.</p>}
+                  </div>
+                </details>);
             })}
-          </ul>
-        </section>
-
-        {/* Agenda e certidões */}
-        <section className="space-y-4">
-          <div className="card">
-            <h2 className="font-semibold mb-3">Próximos compromissos</h2>
-            {!vencs?.length ? <p className="muted text-sm">Nada nos próximos dias.</p> :
-              <ul className="space-y-2 text-sm">{vencs.map((v, i) =>
-                <li key={i} className="flex justify-between gap-3"><span>{v.descricao}</span><span className="muted whitespace-nowrap">{dataBR(v.data)}</span></li>)}</ul>}
-          </div>
-          <div className="card">
-            <h2 className="font-semibold mb-3">Certidões</h2>
-            {!certs?.length ? <p className="muted text-sm">Monitoramento de certidões em implantação.</p> :
-              <ul className="space-y-2 text-sm">{certs.map((c, i) =>
-                <li key={i} className="flex justify-between gap-3"><span>{c.tipo}</span>
-                  <span className="muted whitespace-nowrap">{c.situacao ?? "—"} · até {dataBR(c.validade)}</span></li>)}</ul>}
-          </div>
-        </section>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2 mt-4">
-        {/* Recebi uma intimação */}
-        <section className="card">
-          <h2 className="font-semibold">Recebi uma intimação ou citação</h2>
-          <p className="text-sm muted mb-3">Envie o documento ou uma foto. O escritório é avisado e responde por aqui.</p>
-          <form action={enviarIntimacao} className="space-y-3">
-            <input type="hidden" name="cliente_id" value={cid} />
-            <input className="input" type="file" name="arquivo" accept=".pdf,image/*,.doc,.docx" />
-            <textarea className="input" name="observacao" rows={2} placeholder="Como chegou (correio, oficial de justiça, e-mail) e quando" />
-            <button className="btn">Enviar ao escritório</button>
-          </form>
-          {!!envios?.length && <ul className="text-sm mt-4 space-y-2">{envios.map((e) =>
-            <li key={e.id}><span className="pill mr-2">{rotuloStatus[e.status]}</span>{dataBR(e.criado_em)} {e.retorno_cliente ? `— ${e.retorno_cliente}` : ""}</li>)}</ul>}
-        </section>
-
-        {/* Central jurídica */}
-        <section className="card">
-          <h2 className="font-semibold">Central jurídica</h2>
-          <p className="text-sm muted mb-3">Peça uma impugnação, recurso, mandado de segurança ou consulta.</p>
-          <form action={abrirChamado} className="grid gap-3 sm:grid-cols-2">
-            <input type="hidden" name="cliente_id" value={cid} />
-            <select className="input" name="tipo" required defaultValue="consulta">
-              {Object.entries(rotuloChamado).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-            <input className="input" name="prazo" type="date" title="Prazo, se houver" />
-            <input className="input sm:col-span-2" name="titulo" required placeholder="Assunto" />
-            <input className="input sm:col-span-2" name="referencia" placeholder="Nº do edital, processo ou contrato (opcional)" />
-            <textarea className="input sm:col-span-2" name="descricao" rows={2} placeholder="Descreva o que precisa" />
-            <button className="btn sm:col-span-2">Abrir chamado</button>
-          </form>
-          {!!chamados?.length && <ul className="text-sm mt-4 space-y-2">{chamados.map((c) =>
-            <li key={c.id} className="flex justify-between gap-3"><span>{rotuloChamado[c.tipo]} · {c.titulo}</span>
-              <span className="pill">{rotuloStatus[c.status]}</span></li>)}</ul>}
-        </section>
-      </div>
-
-      <section className="card mt-4">
-        <h2 className="font-semibold">Oportunidades</h2>
-        <p className="text-sm muted">Em breve: editais compatíveis com a sua empresa e possíveis créditos tributários.</p>
+          </div>}
       </section>
-    </main>
+
+      {/* Pedidos e envios */}
+      {(!!chamados?.length || !!envios?.length) && (
+        <section className="grid gap-6 lg:grid-cols-2 mt-6">
+          {!!chamados?.length && <div className="folha p-6"><h2 className="titulo-secao">Seus pedidos</h2>
+            <ul className="mt-3">{chamados.map((c) => <li key={c.id} className="flex justify-between items-center gap-3 py-3 linha first:border-0">
+              <span className="min-w-0"><span className="block font-medium truncate">{c.titulo}</span><span className="text-[13px] discreto">{rotuloChamado[c.tipo]} · {dataBR(c.criado_em)}</span></span>
+              <span className={`etiqueta ${classeStatus[c.status]}`}>{rotuloStatus[c.status]}</span></li>)}</ul></div>}
+          {!!envios?.length && <div className="folha p-6"><h2 className="titulo-secao">Documentos enviados</h2>
+            <ul className="mt-3">{envios.map((e) => <li key={e.id} className="py-3 linha first:border-0">
+              <div className="flex justify-between gap-3"><span className="font-medium">{dataBR(e.criado_em)}</span><span className={`etiqueta ${classeStatus[e.status]}`}>{rotuloStatus[e.status]}</span></div>
+              {e.retorno_cliente && <p className="text-sm mt-1 apoio">{e.retorno_cliente}</p>}</li>)}</ul></div>}
+        </section>)}
+    </Shell>
   );
 }
 
-function Kpi({ rotulo, valor }: { rotulo: string; valor: string }) {
-  return <div className="text-right"><p className="text-xs muted uppercase tracking-wider">{rotulo}</p><p className="text-xl font-semibold">{valor}</p></div>;
+function Fato({ rotulo, valor, nota }: { rotulo: string; valor: string; nota?: string }) {
+  return <div className="min-w-0"><dt className="text-[13px] apoio">{rotulo}</dt>
+    <dd className="serif text-[22px] font-semibold leading-tight mt-0.5">{valor}</dd>
+    {nota && <dd className="text-[13px] discreto truncate">{nota}</dd>}</div>;
 }
+function fmtDoc(d?: string | null) {
+  if (!d) return "não informado";
+  if (d.length === 14) return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+  if (d.length === 11) return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+  return d;
+}
+function curto(n: string) { return n.replace(/ (Ltda|LTDA|Eireli|S\/A|ME|EPP)\.?$/,"").replace(/ – .*$/, ""); }

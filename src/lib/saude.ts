@@ -1,36 +1,44 @@
-// Semáforo de "saúde jurídica" do cliente. Regras simples e explicáveis:
-// vermelho = algo exige ação já; amarelo = atenção nos próximos 30 dias; verde = em dia.
+import { diasAte, dataBR } from "@/components/util";
+
+// Situação jurídica do cliente: regras simples e explicáveis.
 export type Sinal = "verde" | "amarelo" | "vermelho";
+export type Pendencia = { sinal: Sinal; titulo: string; detalhe: string; quando?: string };
 
-type Cert = { situacao: string | null; validade: string | null };
-type Proc = { risco: string; situacao: string | null };
-type Venc = { data: string };
+type Cert = { tipo: string; situacao: string | null; validade: string | null };
+type Proc = { numero_cnj: string; risco: string; situacao: string | null; classe: string | null; exposicao_estimada?: number | null };
+type Venc = { descricao: string; data: string };
+type Cham = { titulo: string; status: string };
+type Envio = { status: string; retorno_cliente: string | null; criado_em: string };
 
-const dias = (iso: string) => Math.ceil((new Date(iso + "T12:00:00").getTime() - Date.now()) / 86400000);
-
-export function saudeJuridica(certs: Cert[], procs: Proc[], vencs: Venc[]) {
-  const motivos: { sinal: Sinal; texto: string }[] = [];
+export function avaliar<P extends Proc>(certs: Cert[], procs: P[], vencs: Venc[], chams: Cham[], envios: Envio[]) {
+  const p: Pendencia[] = [];
   for (const c of certs) {
-    if (c.situacao?.toLowerCase().startsWith("positiva") && !c.situacao.toLowerCase().includes("efeito"))
-      motivos.push({ sinal: "vermelho", texto: "Certidão positiva (impede licitações e crédito)" });
-    if (c.validade) {
-      const d = dias(c.validade);
-      if (d < 0) motivos.push({ sinal: "vermelho", texto: "Certidão vencida" });
-      else if (d <= 30) motivos.push({ sinal: "amarelo", texto: `Certidão vence em ${d} dia(s)` });
+    const pos = (c.situacao ?? "").toLowerCase().startsWith("positiva") && !(c.situacao ?? "").toLowerCase().includes("efeito");
+    if (pos) p.push({ sinal: "vermelho", titulo: `Certidão ${c.tipo} positiva`, detalhe: "Impede participar de licitações e pode travar crédito. O escritório já pode atuar na regularização." });
+    else if (c.validade) {
+      const d = diasAte(c.validade);
+      if (d < 0) p.push({ sinal: "vermelho", titulo: `Certidão ${c.tipo} vencida`, detalhe: `Venceu em ${dataBR(c.validade)}. Precisa ser reemitida.`, quando: c.validade });
+      else if (d <= 30) p.push({ sinal: "amarelo", titulo: `Certidão ${c.tipo} vence em ${d} dia${d === 1 ? "" : "s"}`, detalhe: "Vale reemitir antes de qualquer licitação.", quando: c.validade });
     }
   }
-  const ativos = procs.filter((p) => p.situacao !== "arquivado" && p.situacao !== "baixado");
-  const altos = ativos.filter((p) => p.risco === "alto").length;
-  const medios = ativos.filter((p) => p.risco === "medio").length;
-  if (altos) motivos.push({ sinal: "vermelho", texto: `${altos} processo(s) de risco alto` });
-  if (medios) motivos.push({ sinal: "amarelo", texto: `${medios} processo(s) de risco médio` });
-  const prox = vencs.filter((v) => { const d = dias(v.data); return d >= 0 && d <= 7; }).length;
-  if (prox) motivos.push({ sinal: "amarelo", texto: `${prox} compromisso(s) nos próximos 7 dias` });
+  for (const c of chams.filter((c) => c.status === "aguardando_cliente"))
+    p.push({ sinal: "amarelo", titulo: "O escritório aguarda você", detalhe: c.titulo });
+  for (const e of envios.filter((e) => e.status === "triada" && e.retorno_cliente))
+    p.push({ sinal: "verde", titulo: "Resposta sobre o documento que você enviou", detalhe: e.retorno_cliente! });
+  for (const v of vencs) {
+    const d = diasAte(v.data);
+    if (d >= 0 && d <= 7) p.push({ sinal: "amarelo", titulo: v.descricao, detalhe: d === 0 ? "Hoje" : `Em ${d} dia${d === 1 ? "" : "s"}, ${dataBR(v.data)}`, quando: v.data });
+  }
+  const ativos = procs.filter((x) => x.situacao !== "arquivado" && x.situacao !== "baixado");
+  for (const x of ativos.filter((x) => x.risco === "alto"))
+    p.push({ sinal: "vermelho", titulo: "Processo com risco alto", detalhe: `${x.classe ?? "Processo"} · ${x.numero_cnj}` });
 
-  const sinal: Sinal = motivos.some((m) => m.sinal === "vermelho") ? "vermelho"
-    : motivos.some((m) => m.sinal === "amarelo") ? "amarelo" : "verde";
-  return { sinal, motivos };
+  const ordem = { vermelho: 0, amarelo: 1, verde: 2 };
+  p.sort((a, b) => ordem[a.sinal] - ordem[b.sinal]);
+  const sinal: Sinal = p.some((x) => x.sinal === "vermelho") ? "vermelho" : p.some((x) => x.sinal === "amarelo") ? "amarelo" : "verde";
+  return { sinal, pendencias: p, ativos };
 }
 
-export const corSinal: Record<Sinal, string> = { verde: "var(--ok)", amarelo: "var(--warn)", vermelho: "var(--bad)" };
-export const rotuloSinal: Record<Sinal, string> = { verde: "Em dia", amarelo: "Atenção", vermelho: "Ação necessária" };
+export const cor: Record<Sinal, string> = { verde: "var(--ok)", amarelo: "var(--alerta)", vermelho: "var(--risco)" };
+export const fundo: Record<Sinal, string> = { verde: "var(--ok-fundo)", amarelo: "var(--alerta-fundo)", vermelho: "var(--risco-fundo)" };
+export const rotulo: Record<Sinal, string> = { verde: "Em dia", amarelo: "Atenção", vermelho: "Ação necessária" };

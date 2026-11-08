@@ -2,26 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Identidade: tinta azul-ardósia sobre papel frio; bordô de lombada de código encadernado;
+   ouro velho só no selo de situação. Cores de status apenas com significado. */
 :root {
-  --bg: #f6f5f2;
-  --card: #ffffff;
-  --ink: #1d2433;
-  --muted: #667085;
-  --line: #e4e2dc;
-  --brand: #1f3a5f;
-  --ok: #1f7a4d;
-  --warn: #b7791f;
-  --bad: #b42318;
+  --papel: #F2F4F6;
+  --folha: #FFFFFF;
+  --tinta: #1B2A3A;
+  --tinta-2: #4A5A6B;
+  --tinta-3: #7B8794;
+  --fio: #DCE1E6;
+  --fio-2: #EBEEF1;
+  --bordo: #6E1F2E;
+  --bordo-2: #8E2B3D;
+  --bordo-claro: #F6E9EC;
+  --ouro: #A9853A;
+  --ok: #2F7D5B;   --ok-fundo: #E5F2EC;
+  --alerta: #A86B12; --alerta-fundo: #FBF0DC;
+  --risco: #B42318; --risco-fundo: #FCE9E7;
+  --sombra: 0 1px 2px rgba(27,42,58,.06), 0 8px 24px -12px rgba(27,42,58,.18);
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #12151c; --card: #1a1f29; --ink: #e8eaef; --muted: #98a2b3;
-    --line: #2a3140; --brand: #8fb3e0; --ok: #4fbf87; --warn: #e0a84a; --bad: #f2756a;
+    --papel: #10161D; --folha: #17202A; --tinta: #E7ECF1; --tinta-2: #A9B4C0; --tinta-3: #7E8A97;
+    --fio: #26323F; --fio-2: #1D2732; --bordo: #C9667A; --bordo-2: #DD8193; --bordo-claro: #2A1A20;
+    --ouro: #D2B06A; --ok: #5CC296; --ok-fundo: #15291F; --alerta: #E3A64B; --alerta-fundo: #2C2212;
+    --risco: #F2877A; --risco-fundo: #2E1716; --sombra: 0 1px 2px rgba(0,0,0,.3);
   }
 }
-body { background: var(--bg); color: var(--ink); font-family: var(--font-geist-sans), system-ui, sans-serif; }
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
-.muted { color: var(--muted); }
-.btn { background: var(--brand); color: var(--bg); border-radius: 10px; padding: 9px 14px; font-weight: 600; }
-.input { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; }
-.pill { display: inline-block; font-size: 12px; border-radius: 999px; padding: 2px 10px; border: 1px solid var(--line); }
+
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--papel); color: var(--tinta);
+  font-family: "Public Sans Variable", system-ui, sans-serif; font-size: 15px; line-height: 1.55;
+  font-feature-settings: "tnum" 1;
+}
+.serif { font-family: "Literata Variable", Georgia, serif; font-optical-sizing: auto; }
+h1, h2, h3 { text-wrap: balance; }
+:focus-visible { outline: 2px solid var(--bordo-2); outline-offset: 2px; border-radius: 6px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+@layer components {
+  .folha { background: var(--folha); border: 1px solid var(--fio); border-radius: 12px; }
+  .folha-elevada { background: var(--folha); border-radius: 14px; box-shadow: var(--sombra); }
+  .titulo-secao { @apply serif text-[19px] font-semibold leading-tight; }
+  .apoio { color: var(--tinta-2); }
+  .discreto { color: var(--tinta-3); }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors disabled:opacity-60;
+    background: var(--bordo); color: #fff; }
+  .btn:hover { background: var(--bordo-2); }
+  .btn-sec { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors;
+    border: 1px solid var(--fio); background: var(--folha); color: var(--tinta); }
+  .btn-sec:hover { border-color: var(--tinta-3); }
+  .campo { @apply w-full rounded-lg px-3 py-2.5 text-[15px];
+    border: 1px solid var(--fio); background: var(--folha); color: var(--tinta); }
+  .campo::placeholder { color: var(--tinta-3); }
+  .campo:focus { outline: none; border-color: var(--bordo-2); box-shadow: 0 0 0 3px var(--bordo-claro); }
+  .rotulo { @apply block text-[13px] font-medium mb-1; color: var(--tinta-2); }
+  .etiqueta { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap;
+    background: var(--fio-2); color: var(--tinta-2); }
+  .etq-ok { background: var(--ok-fundo); color: var(--ok); }
+  .etq-alerta { background: var(--alerta-fundo); color: var(--alerta); }
+  .etq-risco { background: var(--risco-fundo); color: var(--risco); }
+  .etq-bordo { background: var(--bordo-claro); color: var(--bordo); }
+  .linha { border-top: 1px solid var(--fio-2); }
+  .numero-cnj { font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+}
+
+details > summary { list-style: none; cursor: pointer; }
+details > summary::-webkit-details-marker { display: none; }
+details[open] .gira { transform: rotate(90deg); }
+.gira { transition: transform .15s; }
+
+/* entrada única do selo */
+@keyframes carimbo { from { transform: scale(1.15) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.selo-anim { animation: carimbo .5s cubic-bezier(.2,.8,.2,1) both; }

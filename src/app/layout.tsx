@@ -1,18 +1,18 @@
-import type { Metadata } from "next";
-import localFont from "next/font/local";
+import type { Metadata, Viewport } from "next";
+import "@fontsource-variable/public-sans";
+import "@fontsource-variable/literata";
 import "./globals.css";
 
-const geistSans = localFont({ src: "./fonts/GeistVF.woff", variable: "--font-geist-sans", weight: "100 900" });
-
 export const metadata: Metadata = {
-  title: "JRB Advogados — Sistema",
-  description: "Acompanhamento jurídico de clientes da JRB Advogados Associados",
+  title: "JRB Advogados",
+  description: "Acompanhamento jurídico dos clientes da JRB Advogados Associados",
 };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#5E1A28" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${geistSans.variable} antialiased`}>{children}</body>
+      <body>{children}</body>
     </html>
   );
 }
