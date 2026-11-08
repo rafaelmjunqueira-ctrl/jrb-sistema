@@ -47,7 +47,7 @@ export default async function PainelCliente({ searchParams }: { searchParams: { 
 
   return (
     <main className="max-w-6xl mx-auto px-4 pb-16">
-      <Topo nome={perfil.nome} area="Painel do cliente" />
+      <Topo nome={perfil.nome} area="Painel do cliente" equipe={perfil.papel !== "cliente"} />
 
       {empresas.length > 1 && (
         <nav className="flex flex-wrap gap-2 mb-4">

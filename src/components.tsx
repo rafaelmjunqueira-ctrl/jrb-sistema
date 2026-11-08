@@ -1,14 +1,27 @@
-export function Topo({ nome, area }: { nome: string; area: string }) {
+import Link from "next/link";
+
+export function Topo({ nome, area, equipe }: { nome: string; area: string; equipe?: boolean }) {
   return (
-    <header className="flex items-center justify-between gap-4 py-5">
-      <div>
-        <p className="text-xs tracking-widest muted uppercase">JRB Advogados Associados</p>
-        <h1 className="text-xl font-semibold">{area}</h1>
+    <header className="py-5 space-y-3">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-xs tracking-widest muted uppercase">JRB Advogados Associados</p>
+          <h1 className="text-xl font-semibold">{area}</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm muted hidden sm:inline">{nome}</span>
+          <Link href="/conta" className="pill">Minha senha</Link>
+          <form action="/sair" method="post"><button className="pill">Sair</button></form>
+        </div>
       </div>
-      <form action="/sair" method="post" className="flex items-center gap-3">
-        <span className="text-sm muted hidden sm:inline">{nome}</span>
-        <button className="pill">Sair</button>
-      </form>
+      {equipe && (
+        <nav className="flex flex-wrap gap-2 text-sm">
+          <Link className="pill" href="/escritorio">Painel</Link>
+          <Link className="pill" href="/escritorio/processos">Processos</Link>
+          <Link className="pill" href="/escritorio/clientes">Clientes</Link>
+          <Link className="pill" href="/cliente">Visão do cliente</Link>
+        </nav>
+      )}
     </header>
   );
 }

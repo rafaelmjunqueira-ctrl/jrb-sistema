@@ -17,7 +17,9 @@ Sistema da JRB Advogados Associados: área do escritório (sócios e funcionári
    `update perfis set papel = 'socio', nome = 'Rafael Miguel Junqueira', oab = 'OAB/SP 406.185' where email = 'SEU_EMAIL';`
 3. **GitHub:** suba este código para o repositório `jrb-sistema`.
 4. **Vercel:** importe o repositório e cadastre `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   (valores em Supabase > Project Settings > API). Nunca coloque a chave `service_role` no app.
+   (valores em Supabase > Project Settings > API Keys).
+   Para criar acessos de clientes, cadastre também `SUPABASE_SECRET_KEY` (chave secret, tipo Secret, sem NEXT_PUBLIC_):
+   ela é usada só no servidor e nunca chega ao navegador.
 
 ## Desenvolvimento local
 ```
