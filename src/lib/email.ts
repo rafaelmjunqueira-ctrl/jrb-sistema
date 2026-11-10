@@ -11,7 +11,7 @@ export async function enviarEmail(para: string, assunto: string, html: string): 
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: REMETENTE(), to: [para], subject: assunto, html, reply_to: process.env.EMAIL_RESPOSTA || "contato@jrbadvs.com.br" }),
+      body: JSON.stringify({ from: REMETENTE(), to: [para], subject: assunto, html, ...(process.env.EMAIL_RESPOSTA ? { reply_to: process.env.EMAIL_RESPOSTA } : {}) }),
     });
     return r.ok;
   } catch { return false; }
@@ -31,7 +31,7 @@ ${paragrafos.map((p) => `<p style="font-size:15px;line-height:1.6;margin:0 0 12p
 ${botao ? `<p style="margin:22px 0"><a href="${botao.url}" style="background:#6E1F2E;color:#fff;text-decoration:none;padding:13px 22px;border-radius:8px;font-size:15px;display:inline-block">${esc(botao.texto)}</a></p>
 <p style="font-size:12px;color:#7A706B;margin:0">Se o botão não abrir, copie este endereço no navegador:<br><span style="word-break:break-all">${botao.url}</span></p>` : ""}
 </td></tr>
-<tr><td style="padding:16px 28px;background:#FAF7F2;font-size:12px;color:#7A706B">JRB Advogados Associados · Ribeirão Preto/SP · (16) 99406-3738 · www.jrbadvs.com.br<br>Este e-mail foi enviado automaticamente pelo painel do cliente.</td></tr>
+<tr><td style="padding:16px 28px;background:#FAF7F2;font-size:12px;color:#7A706B">JRB Advogados Associados · Ribeirão Preto/SP · WhatsApp (16) 99406-3738<br>Este e-mail foi enviado automaticamente pelo painel do cliente. Para falar com o escritório, use o WhatsApp.</td></tr>
 </table></td></tr></table></body></html>`;
 }
 export { esc as escaparHtml };

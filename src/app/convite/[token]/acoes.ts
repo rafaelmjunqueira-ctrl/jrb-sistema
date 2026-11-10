@@ -82,7 +82,7 @@ export async function aceitarConvite(f: FormData) {
     "O seu cadastro no painel da JRB Advogados foi concluído.",
     `Para entrar, use o e-mail <b>${escaparHtml(email)}</b> e a senha que você criou. Lá você acompanha processos, documentos, certidões, licitações e faturas de cada empresa.`,
     "Se esquecer a senha, clique em <b>Esqueci minha senha</b> na tela de entrada e você recebe um link para criar outra.",
-    "Se não foi você que fez este cadastro, responda este e-mail.",
+    "Se não foi você que fez este cadastro, avise a JRB pelo WhatsApp (16) 99406-3738.",
   ], { texto: "Abrir o painel", url: `${site}/login` }));
 
   const { error: e2 } = await supabaseServer().auth.signInWithPassword({ email, password: senha });
