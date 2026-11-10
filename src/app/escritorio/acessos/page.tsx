@@ -1,15 +1,15 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { Search, KeyRound, Mail, Building2, AlertTriangle, ShieldCheck, Ban, X } from "lucide-react";
+import { Search, KeyRound, Mail, Building2, AlertTriangle, ShieldCheck, Ban, X, UserPlus } from "lucide-react";
 import { usuarioAtual } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { emailAtivo } from "@/lib/email";
 import { Shell } from "@/components/shell";
-import { Enviar } from "@/components/interativos";
+import { Enviar, Janela } from "@/components/interativos";
 import { Copiar } from "@/components/copiar";
 import { semAcento } from "@/lib/areas";
-import { senhaProvisoria, linkNovaSenha, liberarEmpresa, tirarEmpresa, mudarPapel, bloquear } from "./acoes";
+import { senhaProvisoria, linkNovaSenha, novoAcesso, liberarEmpresa, tirarEmpresa, mudarPapel, bloquear } from "./acoes";
 
 export const dynamic = "force-dynamic";
 const PAPEL: Record<string, string> = { socio: "Sócio", funcionario: "Equipe", cliente: "Cliente" };
@@ -19,7 +19,9 @@ const MOTIVO: Record<string, string> = {
   aceite: "não marcou o aceite da LGPD", servidor: "falta a chave secreta na Vercel",
 };
 const MSG: Record<string, [string, boolean]> = {
-  "ok=link": ["Link para nova senha enviado por e-mail.", true], "ok=empresa": ["Empresa liberada.", true], "ok=papel": ["Papel alterado.", true],
+  "ok=link": ["Link para nova senha enviado por e-mail.", true], "ok=empresa": ["Empresa liberada.", true], "ok=papel": ["Papel alterado.", true], "ok=criado": ["Acesso criado. Veja a senha provisória abaixo.", true],
+  "erro=ja-existe": ["Este e-mail já tem acesso. Ele está aberto abaixo: dá para mudar o papel ou gerar nova senha.", false],
+  "erro=novo-dados": ["Confira o nome e o e-mail.", false], "erro=novo-falhou": ["Não foi possível criar o acesso. Confira o e-mail.", false],
   "erro=email": ["O e-mail não saiu. Confira o RESEND_API_KEY na Vercel, ou use a senha provisória.", false],
   "erro=senha": ["Não foi possível trocar a senha.", false], "erro=socio": ["Só um sócio pode fazer isso.", false],
   "erro=proprio": ["Você não pode tirar o seu próprio papel de sócio.", false], "erro=chave": ["Falta cadastrar SUPABASE_SECRET_KEY na Vercel.", false],
@@ -48,7 +50,7 @@ export default async function Acessos({ searchParams }: { searchParams: { q?: st
   const q = semAcento(searchParams.q ?? "");
   const filtrados = usuarios.filter((u) => !q || semAcento(`${u.nome} ${u.email}`).includes(q));
   const sel = usuarios.find((u) => u.id === searchParams.u);
-  let prov: { u: string; senha: string } | null = null;
+  let prov: { u: string; senha: string; enviado?: boolean } | null = null;
   try { const c = cookies().get("senha_prov")?.value; if (c) prov = JSON.parse(c); } catch {}
 
   // Só mostra problemas que ainda não foram resolvidos depois (ex.: errou o convite e depois entrou)
@@ -60,7 +62,23 @@ export default async function Acessos({ searchParams }: { searchParams: { q?: st
   const socio = perfil.papel === "socio";
 
   return (
-    <Shell perfil={perfil} titulo="Acessos e senhas" subtitulo={`${usuarios.length} pessoas com acesso · ${usuarios.filter((u) => u.ultimo).length} já entraram`}>
+    <Shell perfil={perfil} titulo="Acessos e senhas" subtitulo={`${usuarios.length} pessoas com acesso · ${usuarios.filter((u) => u.ultimo).length} já entraram`}
+      acoes={<Janela rotulo="Novo acesso" icone={<UserPlus size={17} />} titulo="Criar acesso" descricao="Para sócio, alguém da equipe ou cliente. A pessoa recebe uma senha provisória e troca depois.">
+        <form action={novoAcesso} className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2"><label className="rotulo" htmlFor="na-nome">Nome completo</label><input id="na-nome" name="nome" required className="campo" /></div>
+          <div className="sm:col-span-2"><label className="rotulo" htmlFor="na-email">E-mail (é o usuário para entrar)</label><input id="na-email" name="email" type="email" required className="campo" /></div>
+          <div><label className="rotulo" htmlFor="na-papel">Papel</label>
+            <select id="na-papel" name="papel" className="campo" defaultValue={socio ? "socio" : "cliente"}>
+              {socio && <option value="socio">Sócio (vê e faz tudo)</option>}
+              {socio && <option value="funcionario">Equipe do escritório</option>}
+              <option value="cliente">Cliente</option></select></div>
+          <div><label className="rotulo" htmlFor="na-oab">OAB (se for advogado)</label><input id="na-oab" name="oab" className="campo" placeholder="OAB/SP 000.000" /></div>
+          <div className="sm:col-span-2"><label className="rotulo" htmlFor="na-cli">Empresa (só para cliente)</label>
+            <select id="na-cli" name="cliente_id" className="campo" defaultValue=""><option value="">Nenhuma</option>
+              {(clientes ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></div>
+          <div className="sm:col-span-2"><Enviar className="btn w-full !py-3" pendente="Criando…"><UserPlus size={17} />Criar acesso</Enviar></div>
+        </form>
+      </Janela>}>
       {aviso && <p role="status" className="rounded-lg p-3 mb-4 text-sm" style={{ background: aviso[1] ? "var(--ok-fundo)" : "var(--risco-fundo)", color: aviso[1] ? "var(--ok)" : "var(--risco)" }}>{aviso[0]}</p>}
       {!emailAtivo() && <p className="rounded-lg p-3 mb-4 text-sm" style={{ background: "var(--alerta-fundo)", color: "var(--alerta)" }}>O envio de e-mails ainda não está ligado. Enquanto isso, quem esquecer a senha aparece em &quot;Precisa de ajuda&quot; e você gera uma senha provisória aqui.</p>}
 
@@ -103,7 +121,9 @@ export default async function Acessos({ searchParams }: { searchParams: { q?: st
           <div><h3 className="font-semibold mb-2 flex items-center gap-2"><KeyRound size={16} />Senha</h3>
             {prov?.u === sel.id ? <div className="rounded-lg p-3" style={{ background: "var(--ok-fundo)" }}>
               <p className="text-sm">Senha provisória (aparece só agora). Passe ao cliente e peça para trocar em &quot;Minha senha&quot;:</p>
-              <p className="font-mono text-lg mt-1 flex items-center gap-2">{prov.senha} <Copiar texto={prov.senha} rotulo="Copiar" /></p></div>
+              <p className="font-mono text-lg mt-1 flex items-center gap-2">{prov.senha} <Copiar texto={prov.senha} rotulo="Copiar" /></p>
+              {prov.enviado && <p className="text-sm mt-1">Também mandamos para o e-mail dele um link para criar a própria senha.</p>}
+              <p className="text-sm mt-1">Endereço para entrar: <b>jrb-sistema.vercel.app</b></p></div>
             : <div className="flex flex-wrap gap-2">
               <form action={senhaProvisoria}><input type="hidden" name="u" value={sel.id} /><Enviar className="btn" pendente="Gerando…"><KeyRound size={16} />Gerar senha provisória</Enviar></form>
               {emailAtivo() && <form action={linkNovaSenha}><input type="hidden" name="u" value={sel.id} /><Enviar className="btn-sec" pendente="Enviando…"><Mail size={16} />Enviar link por e-mail</Enviar></form>}

@@ -90,3 +90,34 @@ export async function bloquear(f: FormData) {
   await log(admin, user!.id, ativo ? "acesso_liberado" : "acesso_bloqueado", u);
   volta(u);
 }
+
+// Novo acesso direto (sócio, equipe ou cliente), sem convite. Senha provisória aparece uma vez na tela.
+export async function novoAcesso(f: FormData) {
+  const { admin, user, perfil } = await equipe();
+  const nome = String(f.get("nome") ?? "").trim(), email = String(f.get("email") ?? "").trim().toLowerCase();
+  const papel = String(f.get("papel") ?? "cliente"), oab = String(f.get("oab") ?? "").trim(), cid = String(f.get("cliente_id") ?? "");
+  if (nome.length < 3 || !/^\S+@\S+\.\S+$/.test(email)) redirect(`${AQUI}?erro=novo-dados`);
+  if (!["cliente", "funcionario", "socio"].includes(papel) || (papel !== "cliente" && perfil!.papel !== "socio")) redirect(`${AQUI}?erro=socio`);
+
+  const { data: ja } = await admin.from("perfis").select("id").eq("email", email).maybeSingle();
+  if (ja) redirect(`${AQUI}?u=${ja.id}&erro=ja-existe`);
+
+  const senha = randomBytes(9).toString("base64url");
+  const { data, error } = await admin.auth.admin.createUser({ email, password: senha, email_confirm: true, user_metadata: { nome } });
+  if (error || !data.user) redirect(`${AQUI}?erro=novo-falhou`);
+  const uid = data!.user!.id;
+  await admin.from("perfis").update({ nome, papel, oab: oab || null }).eq("id", uid);
+  if (papel === "cliente" && cid) await admin.from("cliente_membros").upsert({ cliente_id: cid, usuario_id: uid });
+  await log(admin, user!.id, "acesso_criado", uid, { email, papel });
+
+  // Com e-mail ligado, a pessoa também recebe um link para criar a própria senha
+  let enviado = false;
+  const { data: lk } = await admin.auth.admin.generateLink({ type: "recovery", email });
+  if (lk?.properties?.hashed_token) enviado = await enviarEmail(email, "Seu acesso ao painel JRB", modelo(`Olá, ${escaparHtml(nome.split(" ")[0])}`, [
+    `A JRB Advogados criou o seu acesso ao painel${papel === "cliente" ? "" : " do escritório"}. Você entra com o e-mail <b>${escaparHtml(email)}</b>.`,
+    "Clique no botão para criar a sua senha. O link vale por 1 hora; depois disso, use \"Esqueci minha senha\" na tela de entrada.",
+  ], { texto: "Criar minha senha", url: `${enderecoSite()}/login/redefinir?t=${encodeURIComponent(lk.properties.hashed_token)}` }));
+
+  cookies().set("senha_prov", JSON.stringify({ u: uid, senha, enviado }), { httpOnly: true, secure: true, sameSite: "strict", maxAge: 120, path: AQUI });
+  volta(uid, "&ok=criado");
+}
