@@ -7,7 +7,7 @@ export function Shell({ perfil, titulo, subtitulo, acoes, children }: {
   const equipe = perfil.papel !== "cliente";
   const itens: ItemNav[] = equipe
     ? [{ href: "/escritorio", rotulo: "Hoje", icone: "hoje" }, { href: "/escritorio/processos", rotulo: "Processos", icone: "processos" },
-       { href: "/escritorio/clientes", rotulo: "Clientes", icone: "clientes" },
+       { href: "/escritorio/clientes", rotulo: "Clientes", icone: "clientes" }, { href: "/escritorio/acessos", rotulo: "Acessos e senhas", icone: "acessos" },
        { href: "/escritorio/licitacoes", rotulo: "Licitações", icone: "licitacoes" }, { href: "/escritorio/financeiro", rotulo: "Financeiro", icone: "financeiro" },
        { href: "/cliente", rotulo: "Visão do cliente", icone: "cliente" }]
     : [{ href: "/cliente", rotulo: "Minha empresa", icone: "painel" }, { href: "/cliente/licitacoes", rotulo: "Licitações", icone: "licitacoes" },

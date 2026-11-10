@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Users, Eye, KeyRound, LogOut, ChevronRight } from "lucide-react";
+import { Users, UserCog, Eye, KeyRound, LogOut, ChevronRight } from "lucide-react";
 import { usuarioAtual } from "@/lib/supabase/server";
 import { Shell } from "@/components/shell";
 
@@ -9,7 +9,7 @@ export default async function Mais() {
   const { perfil } = await usuarioAtual();
   if (!perfil) redirect("/login");
   const itens = [
-    ...(perfil.papel !== "cliente" ? [{ href: "/escritorio/clientes", rotulo: "Clientes", Icone: Users }, { href: "/cliente", rotulo: "Visão do cliente", Icone: Eye }] : []),
+    ...(perfil.papel !== "cliente" ? [{ href: "/escritorio/clientes", rotulo: "Clientes", Icone: Users }, { href: "/escritorio/acessos", rotulo: "Acessos e senhas", Icone: UserCog }, { href: "/cliente", rotulo: "Visão do cliente", Icone: Eye }] : []),
     { href: "/conta", rotulo: "Minha senha", Icone: KeyRound },
   ];
   return (

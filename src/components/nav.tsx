@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Scale, CalendarClock, FolderOpen, Users, Eye, KeyRound, LogOut, LayoutDashboard, Wallet, Landmark, Menu, FolderLock } from "lucide-react";
+import { Scale, CalendarClock, FolderOpen, Users, Eye, KeyRound, LogOut, LayoutDashboard, Wallet, Landmark, Menu, FolderLock, UserCog } from "lucide-react";
 
-const ICONES = { hoje: CalendarClock, processos: FolderOpen, clientes: Users, cliente: Eye, painel: LayoutDashboard, financeiro: Wallet, licitacoes: Landmark, mais: Menu, conta: KeyRound, documentos: FolderLock } as const;
+const ICONES = { hoje: CalendarClock, processos: FolderOpen, clientes: Users, cliente: Eye, painel: LayoutDashboard, financeiro: Wallet, licitacoes: Landmark, mais: Menu, conta: KeyRound, documentos: FolderLock, acessos: UserCog } as const;
 export type ItemNav = { href: string; rotulo: string; icone: keyof typeof ICONES };
 
 let itensTemFinanceiroCliente = false;

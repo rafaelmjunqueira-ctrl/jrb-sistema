@@ -145,6 +145,7 @@ export default async function Clientes({ searchParams }: { searchParams: { c?: s
               {!membros.length ? <p className="text-sm apoio mt-2">Ninguém desta empresa tem acesso ainda.</p> :
                 <ul className="mt-2">{membros.map((m) => <li key={m.usuario_id} className="flex justify-between items-center gap-3 py-2.5 linha first:border-0">
                   <span className="min-w-0"><span className="block font-medium">{m.perfis?.nome}</span><span className="text-[13px] discreto">{m.perfis?.email}</span></span>
+                  <Link href={`/escritorio/acessos?u=${m.usuario_id}`} className="text-[13px] underline ml-auto" style={{ color: "var(--bordo)" }}>Senha</Link>
                   <form action={removerAcesso}><input type="hidden" name="cliente_id" value={atual.id} /><input type="hidden" name="usuario_id" value={m.usuario_id} />
                     <Enviar className="btn-sec !py-1.5" pendente="…">Remover</Enviar></form></li>)}</ul>}
               <details className="mt-4"><summary className="text-sm" style={{ color: "var(--bordo)" }}>Criar acesso com senha provisória (sem convite)</summary>
