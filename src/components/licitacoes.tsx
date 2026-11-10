@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Star, Search, Bookmark, SlidersHorizontal } from "lucide-react";
+import { Star, Search, Bookmark, SlidersHorizontal, FolderLock } from "lucide-react";
 import { NOME_AREA } from "@/lib/areas";
 import { reais } from "@/components/util";
 
@@ -33,6 +33,7 @@ export function SubNavLicitacoes({ cid, atual, nAcomp }: { cid: string; atual: "
     { k: "buscar", href: `/cliente/licitacoes?c=${cid}`, rotulo: "Buscar editais", Icone: Search },
     { k: "acompanhando", href: `/cliente/licitacoes/acompanhando?c=${cid}`, rotulo: "Acompanhando", Icone: Bookmark, n: nAcomp },
     { k: "preferencias", href: `/cliente/licitacoes/preferencias?c=${cid}`, rotulo: "Preferências", Icone: SlidersHorizontal },
+    { k: "documentos", href: `/cliente/documentos?c=${cid}`, rotulo: "Documentos e CNDs", Icone: FolderLock },
   ];
   return (
     <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1 mb-5">

@@ -9,11 +9,12 @@ import { AbasCliente } from "@/components/abas-cliente";
 import { Janela, SoltarArquivo, Enviar } from "@/components/interativos";
 import { dataBR, dataCurta, diasAte, reais, hojeISO, rotuloChamado, rotuloStatus, classeStatus, limparAndamento } from "@/components/util";
 import { enviarIntimacao, abrirChamado } from "./acoes";
+import { VisaoGrupo } from "./grupo";
 import { semAcento } from "@/lib/areas";
 
 export const dynamic = "force-dynamic";
 
-export default async function PainelCliente({ searchParams }: { searchParams: { c?: string } }) {
+export default async function PainelCliente({ searchParams }: { searchParams: { c?: string; grupo?: string } }) {
   const { sb, user, perfil } = await usuarioAtual();
   if (!user || !perfil) redirect("/login");
 
@@ -23,17 +24,25 @@ export default async function PainelCliente({ searchParams }: { searchParams: { 
       <div className="folha p-8 max-w-xl"><p className="titulo-secao">Seu acesso está quase pronto</p>
         <p className="apoio mt-2">Ainda não vinculamos nenhuma empresa ao seu usuário. Fale com a JRB para concluir.</p></div></Shell>;
   }
-  const atual = empresas.find((e) => e.id === searchParams.c) ?? empresas[0];
+  // Várias empresas e nenhuma escolhida: visão do grupo
+  const equipe = perfil.papel !== "cliente";
+  if (!searchParams.c && equipe && !searchParams.grupo) redirect("/escritorio/clientes");
+  const doGrupo = equipe && searchParams.grupo ? (await sb.from("clientes").select("id").eq("grupo", searchParams.grupo)).data?.map((x) => x.id) ?? [] : null;
+  const visiveis = doGrupo ? empresas.filter((e) => doGrupo.includes(e.id)) : empresas;
+  if (!searchParams.c && visiveis.length > 1) return <VisaoGrupo sb={sb} perfil={perfil} empresas={visiveis} grupo={searchParams.grupo} />;
+  const atual = empresas.find((e) => e.id === searchParams.c) ?? visiveis[0] ?? empresas[0];
   const cid = atual.id;
   const hoje = hojeISO();
 
-  const [{ data: vinculos }, { data: certs }, { data: vencs }, { data: chamados }, { data: envios }] = await Promise.all([
+  const [{ data: vinculos }, { data: certs0 }, { data: docsVal }, { data: vencs }, { data: chamados }, { data: envios }] = await Promise.all([
     sb.from("processo_clientes").select("polo, processo_id").eq("cliente_id", cid),
     sb.from("certidoes").select("tipo,orgao,situacao,validade").eq("cliente_id", cid).order("validade"),
+    sb.from("documentos").select("nome,validade").eq("cliente_id", cid).not("validade", "is", null).order("validade"),
     sb.from("vencimentos").select("tipo,descricao,data").eq("cliente_id", cid).gte("data", hoje).order("data").limit(10),
     sb.from("chamados").select("id,tipo,titulo,status,criado_em").eq("cliente_id", cid).order("criado_em", { ascending: false }).limit(8),
     sb.from("intimacoes_enviadas").select("id,observacao,status,retorno_cliente,criado_em").eq("cliente_id", cid).order("criado_em", { ascending: false }).limit(6),
   ]);
+  const certs = [...(certs0 ?? []), ...(docsVal ?? []).map((d) => ({ tipo: d.nome, orgao: null, situacao: null, validade: d.validade }))];
   const polo = new Map((vinculos ?? []).map((v) => [v.processo_id, v.polo]));
   const ids = Array.from(polo.keys());
   const { data: procs } = ids.length
@@ -79,9 +88,10 @@ export default async function PainelCliente({ searchParams }: { searchParams: { 
   return (
     <Shell perfil={perfil} titulo={atual.nome}
       subtitulo={<span className="inline-flex items-center gap-1.5"><Building2 size={15} />{atual.tipo === "PJ" ? "CNPJ" : "CPF"} {fmtDoc(atual.documento)}</span>}
-      acoes={empresas.length > 1 && (
+      acoes={visiveis.length > 1 && (
         <nav aria-label="Empresas" className="flex flex-wrap gap-1.5">
-          {empresas.map((e) => <Link key={e.id} href={`/cliente?c=${e.id}`} className="etiqueta !py-1.5 !px-3 !text-[13px]"
+          <Link href={`/cliente${searchParams.grupo ? `?grupo=${encodeURIComponent(searchParams.grupo)}` : ""}`} className="etiqueta !py-1.5 !px-3 !text-[13px]" style={{ background: "var(--folha)", border: "1px solid var(--fio)" }}>Todas</Link>
+          {visiveis.map((e) => <Link key={e.id} href={`/cliente?c=${e.id}`} className="etiqueta !py-1.5 !px-3 !text-[13px]"
             style={e.id === cid ? { background: "var(--bordo)", color: "var(--sobre-bordo)" } : { background: "var(--folha)", border: "1px solid var(--fio)" }}>{curto(e.nome)}</Link>)}
         </nav>)}>
 
@@ -173,7 +183,7 @@ export default async function PainelCliente({ searchParams }: { searchParams: { 
                 </li>);
             })}</ol>}
           <h3 className="font-semibold text-[15px] mt-7 mb-2">Certidões</h3>
-          {!certs?.length ? <p className="text-sm apoio">O monitoramento automático das certidões (federal, FGTS, trabalhista, estadual e municipal) entra na próxima etapa.</p> :
+          {!certs?.length ? <p className="text-sm apoio">Guarde as certidões em <Link className="underline" href={`/cliente/documentos?c=${cid}`}>Documentos</Link> com a data de validade para ser avisado antes de vencer.</p> :
             <ul className="space-y-2">{certs.map((c, i) => {
               const venc = c.validade ? diasAte(c.validade) : 99;
               const cls = (c.situacao ?? "").toLowerCase().startsWith("positiva") && !(c.situacao ?? "").includes("efeito") || venc < 0 ? "etq-risco" : venc <= 30 ? "etq-alerta" : "etq-ok";

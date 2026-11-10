@@ -1,4 +1,7 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+  // Fotos de intimação enviadas pelo formulário (documentos grandes vão direto ao armazenamento)
+  experimental: { serverActions: { bodySizeLimit: "4mb" } },
+};
 
 export default nextConfig;

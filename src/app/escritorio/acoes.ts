@@ -147,3 +147,38 @@ export async function removerAcesso(f: FormData) {
   revalidatePath("/escritorio/clientes");
   redirect(`/escritorio/clientes?c=${cid}`);
 }
+
+// ---------- Cadastro do cliente e convites ----------
+export async function salvarCliente(f: FormData) {
+  const { sb } = await equipe();
+  const cid = String(f.get("cliente_id"));
+  const doc = (s(f, "documento") ?? "").replace(/\D/g, "") || null;
+  const { error } = await sb.from("clientes").update({
+    nome: s(f, "nome"), tipo: s(f, "tipo"), documento: doc, grupo: s(f, "grupo"), email: s(f, "email"), telefone: s(f, "telefone"), plano: s(f, "plano") ?? "beta",
+  }).eq("id", cid);
+  if (error) redirect(`/escritorio/clientes?c=${cid}&erro=${error.code === "23505" ? "doc-repetido" : "salvar"}`);
+  revalidatePath("/escritorio/clientes");
+  redirect(`/escritorio/clientes?c=${cid}&ok=salvo`);
+}
+
+export async function gerarConvite(f: FormData) {
+  const { sb } = await equipe();
+  const cid = String(f.get("cliente_id"));
+  let ids = [cid];
+  if (f.get("grupo_todo") === "on") {
+    const { data: c } = await sb.from("clientes").select("grupo").eq("id", cid).single();
+    if (c?.grupo) ids = ((await sb.from("clientes").select("id").eq("grupo", c.grupo).eq("ativo", true)).data ?? []).map((x: any) => x.id);
+  }
+  const token = randomBytes(18).toString("base64url");
+  const { error } = await sb.from("convites").insert({ token, cliente_ids: ids, nome: s(f, "nome"), email: s(f, "email")?.toLowerCase() ?? null });
+  if (error) redirect(`/escritorio/clientes?c=${cid}&erro=convite`);
+  revalidatePath("/escritorio/clientes");
+  redirect(`/escritorio/clientes?c=${cid}&convite=${token}`);
+}
+
+export async function cancelarConvite(f: FormData) {
+  const { sb } = await equipe();
+  await sb.from("convites").update({ expira_em: new Date().toISOString() }).eq("token", String(f.get("token")));
+  revalidatePath("/escritorio/clientes");
+  redirect(`/escritorio/clientes?c=${String(f.get("cliente_id"))}`);
+}

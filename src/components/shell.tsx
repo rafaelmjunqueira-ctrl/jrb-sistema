@@ -10,7 +10,8 @@ export function Shell({ perfil, titulo, subtitulo, acoes, children }: {
        { href: "/escritorio/clientes", rotulo: "Clientes", icone: "clientes" },
        { href: "/escritorio/licitacoes", rotulo: "Licitações", icone: "licitacoes" }, { href: "/escritorio/financeiro", rotulo: "Financeiro", icone: "financeiro" },
        { href: "/cliente", rotulo: "Visão do cliente", icone: "cliente" }]
-    : [{ href: "/cliente", rotulo: "Minha empresa", icone: "painel" }, { href: "/cliente/licitacoes", rotulo: "Licitações", icone: "licitacoes" }, { href: "/cliente/financeiro", rotulo: "Financeiro", icone: "financeiro" }];
+    : [{ href: "/cliente", rotulo: "Minha empresa", icone: "painel" }, { href: "/cliente/licitacoes", rotulo: "Licitações", icone: "licitacoes" },
+       { href: "/cliente/documentos", rotulo: "Documentos", icone: "documentos" }, { href: "/cliente/financeiro", rotulo: "Financeiro", icone: "financeiro" }];
   return (
     <div className="min-h-screen">
       <Lateral itens={itens} nome={perfil.nome} papel={perfil.papel} />
@@ -33,7 +34,7 @@ export function Shell({ perfil, titulo, subtitulo, acoes, children }: {
            { href: "/escritorio/licitacoes", rotulo: "Licitações", icone: "licitacoes" }, { href: "/escritorio/financeiro", rotulo: "Financeiro", icone: "financeiro" },
            { href: "/mais", rotulo: "Mais", icone: "mais" }]
         : [{ href: "/cliente", rotulo: "Empresa", icone: "painel" }, { href: "/cliente/licitacoes", rotulo: "Licitações", icone: "licitacoes" },
-           { href: "/cliente/financeiro", rotulo: "Financeiro", icone: "financeiro" }, { href: "/conta", rotulo: "Conta", icone: "conta" }]} />
+           { href: "/cliente/documentos", rotulo: "Documentos", icone: "documentos" }, { href: "/cliente/financeiro", rotulo: "Financeiro", icone: "financeiro" }, { href: "/conta", rotulo: "Conta", icone: "conta" }]} />
     </div>
   );
 }

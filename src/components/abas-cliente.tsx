@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { LayoutDashboard, Wallet, Landmark } from "lucide-react";
+import { LayoutDashboard, Wallet, Landmark, FolderLock } from "lucide-react";
 
 // Abas da área do cliente (também aparecem quando a equipe usa "Visão do cliente")
-export function AbasCliente({ cid, atual }: { cid: string; atual: "geral" | "licitacoes" | "financeiro" }) {
+export function AbasCliente({ cid, atual }: { cid: string; atual: "geral" | "licitacoes" | "documentos" | "financeiro" }) {
   const abas = [
     { k: "geral", href: `/cliente?c=${cid}`, rotulo: "Visão geral", Icone: LayoutDashboard },
     { k: "licitacoes", href: `/cliente/licitacoes?c=${cid}`, rotulo: "Licitações", Icone: Landmark },
+    { k: "documentos", href: `/cliente/documentos?c=${cid}`, rotulo: "Documentos", Icone: FolderLock },
     { k: "financeiro", href: `/cliente/financeiro?c=${cid}`, rotulo: "Financeiro", Icone: Wallet },
   ] as const;
   return (
