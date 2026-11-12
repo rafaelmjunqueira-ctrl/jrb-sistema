@@ -26,7 +26,7 @@ export const diasDou = (n: number) => Array.from({ length: n }, (_, i) => dmy(ne
 async function pegarTexto(url: string) {
   for (let i = 0; i < 3; i++) {
     try {
-      const r = await fetch(url, { cache: "no-store", headers: { "User-Agent": UA, Accept: "text/html" } });
+      const r = await fetch(url, { cache: "no-store", headers: { "User-Agent": UA, Accept: "text/html" }, signal: AbortSignal.timeout(20000) });
       if (r.ok) return await r.text();
       if (r.status === 404) return null;
     } catch { /* tenta de novo */ }
@@ -65,7 +65,7 @@ const MESES: Record<string, number> = { janeiro: 1, fevereiro: 2, marco: 3, abri
 const PALAVRA_PRAZO = /(abertura|sess[aã]o|propostas?|disputa|recebimento|realiza[cç][aã]o|certame|lances|entrega|credenciamento|in[ií]cio|data|dia|at[eé])/i;
 
 // Datas do texto que podem ser o prazo das propostas: depois da publicação e até 120 dias à frente, perto de uma palavra-chave
-function datasDePrazo(texto: string, pub: Date) {
+export function datasDePrazo(texto: string, pub: Date) {
   const achadas: { quando: Date; pos: number }[] = [];
   const t = semAcento(texto);
   const re = /(\d{1,2})\s*[\/.]\s*(\d{1,2})\s*[\/.]\s*(\d{4})|(\d{1,2})\s*(?:º|o)?\s+de\s+(janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})/g;
@@ -86,7 +86,7 @@ function datasDePrazo(texto: string, pub: Date) {
   return achadas.sort((x, y) => +x.quando - +y.quando);
 }
 
-function modalidade(t: string): { id: number | null; nome: string | null } {
+export function modalidade(t: string): { id: number | null; nome: string | null } {
   const s = semAcento(t.slice(0, 400));
   if (/pregao\W{0,3}(\(|-)?\s*presencial/.test(s)) return { id: 7, nome: "Pregão - Presencial" };
   if (/pregao/.test(s)) return { id: 6, nome: "Pregão - Eletrônico" };
@@ -105,7 +105,7 @@ const limpa = (x: string) => x.replace(/\s+/g, " ").replace(/^["'“”\s:,;–-
   .replace(/^(?:da presente licita[cç][aã]o |do certame |desta licita[cç][aã]o )?(?:consiste (?:na|no|em) |[ée] (?:a|o) )/i, "").replace(/^(?:a|o)\s+(?=[A-ZÀ-Úa-zà-ú]{4})/, "").trim();
 const ok = (x?: string | null) => !!x && x.length >= 25 && !RUIM.test(x);
 
-function objetoDe(t: string) {
+export function objetoDe(t: string) {
   const fim = String.raw`(?=\.\s|;\s|\n|\s(?:data|abertura|sess[aã]o p[uú]blica|crit[eé]rio|valor (?:estimado|global|total|m[aá]ximo)|local|tipo:|recebimento|prazo|in[ií]cio|realiza[cç][aã]o|entrega das|disputa|o edital|edital (?:e|completo|na [ií]ntegra)|informa[cç][oõ]es|retirada|julgamento)\b|$)`;
   const tentativas = [
     new RegExp(String.raw`\bobjeto\s*(?:da licita[cç][aã]o|do certame)?\s*[:\-–]\s*([\s\S]{15,700}?)` + fim, "i"),
@@ -117,7 +117,7 @@ function objetoDe(t: string) {
   return limpa(t.replace(/^[\s\S]{0,120}?\d{4}\s*/, "").slice(0, 300));
 }
 
-const capitalizar = (s: string) => s.toLowerCase().split(/\s+/).map((w, i) => (i > 0 && /^(de|da|do|das|dos|e)$/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1))).join(" ");
+export const capitalizar = (s: string) => s.toLowerCase().split(/\s+/).map((w, i) => (i > 0 && /^(de|da|do|das|dos|e)$/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1))).join(" ");
 
 // Monta a linha da tabela "editais" a partir do item da lista e do texto completo
 export function montarEdital(it: ItemDou, texto: string) {

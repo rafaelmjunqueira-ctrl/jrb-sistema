@@ -16,7 +16,8 @@ export const NOME_STATUS = Object.fromEntries(STATUS_ACOMP.map((s) => [s.id, s])
 // Editais do PNCP: cnpj-ano-sequencial. Editais de diários oficiais: o próprio id (ex.: DOU-743348423).
 export const slugEdital = (e: { id?: string; fonte?: string | null; orgao_cnpj: string | null; ano: number | null; sequencial: number | null }) =>
   e.fonte && e.fonte !== "pncp" && e.id ? e.id : `${e.orgao_cnpj}-${e.ano}-${e.sequencial}`;
-export const NOME_FONTE: Record<string, string> = { pncp: "PNCP", dou: "Diário Oficial da União" };
+export const NOME_FONTE: Record<string, string> = { pncp: "PNCP", dou: "Diário Oficial da União", dosp: "Diário oficial do município" };
+const SIGLA_FONTE: Record<string, string> = { dou: "DOU", dosp: "DOM" };
 
 export function SubNavEscritorio({ atual }: { atual: "buscar" | "acompanhados" }) {
   const itens = [
@@ -75,7 +76,7 @@ type Ed = { id: string; fonte?: string | null; orgao_cnpj: string | null; ano: n
 
 export function CartaoEdital({ e, cid, seguido, novo, acao, volta, escritorio }: { e: Ed; cid: string; seguido: boolean; novo?: boolean; acao: (f: FormData) => Promise<void>; volta: string; escritorio?: boolean }) {
   const semData = !e.encerramento_em && e.fonte && e.fonte !== "pncp";
-  const p = semData ? { dia: "DOU", mes: e.publicado_em ? new Date(e.publicado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }) : "", texto: "ver data no aviso", tom: "neutro" as const } : prazoInfo(e.encerramento_em);
+  const p = semData ? { dia: SIGLA_FONTE[e.fonte!] ?? "DO", mes: e.publicado_em ? new Date(e.publicado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }) : "", texto: "ver data no aviso", tom: "neutro" as const } : prazoInfo(e.encerramento_em);
   const [fundo, cor] = COR[p.tom];
   const href = escritorio ? `/escritorio/licitacoes/${slugEdital(e)}` : `/cliente/licitacoes/${slugEdital(e)}?c=${cid}`;
   return (
@@ -92,7 +93,7 @@ export function CartaoEdital({ e, cid, seguido, novo, acao, volta, escritorio }:
         <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
           {novo && <span className="etiqueta etq-bordo">Novo</span>}
           {e.situacao_id === 4 && <span className="etiqueta etq-alerta">Suspensa</span>}
-          {e.fonte === "dou" && <span className="etiqueta etq-alerta" title="Publicado no Diário Oficial da União">DOU</span>}
+          {e.fonte && e.fonte !== "pncp" && <span className="etiqueta etq-alerta" title={`Publicado no ${NOME_FONTE[e.fonte] ?? "diário oficial"}`}>{SIGLA_FONTE[e.fonte] ?? "DO"}</span>}
           {e.modalidade && <span className="etiqueta">{e.modalidade}</span>}
           {e.valor_estimado ? <span className="etiqueta">{reais(Number(e.valor_estimado))}</span> : null}
           {(e.areas ?? []).slice(0, 2).map((a) => <span key={a} className="etiqueta hidden sm:inline-flex">{NOME_AREA[a] ?? a}</span>)}

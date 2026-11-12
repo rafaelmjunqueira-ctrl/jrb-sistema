@@ -129,14 +129,14 @@ export async function BuscaEditais({ searchParams, escritorio = false }: { searc
               {pag > 1 && <Link className="btn-sec" href={qs({ p: pag - 1 })}>Anterior</Link>}
               {pag * POR_PAG < total && <Link className="btn-sec" href={qs({ p: pag + 1 })}>Próxima</Link>}
             </div></div>}
-          <p className="text-[12px] discreto mt-6">Fontes: Portal Nacional de Contratações Públicas (PNCP) e Diário Oficial da União (seção 3), dados públicos. Confira sempre o edital oficial antes de participar.</p>
+          <p className="text-[12px] discreto mt-6">Fontes: Portal Nacional de Contratações Públicas (PNCP), Diário Oficial da União (seção 3) e diários oficiais municipais (DOSP), dados públicos. Confira sempre o edital oficial antes de participar.</p>
         </section>
       </div>
     </Shell>
   );
 }
 
-const FONTES = [{ id: "pncp", nome: "PNCP" }, { id: "dou", nome: "Diário Oficial da União" }];
+const FONTES = [{ id: "pncp", nome: "PNCP" }, { id: "dou", nome: "Diário Oficial da União" }, { id: "dosp", nome: "Diários municipais (DOSP)" }];
 
 // Grupos curtos primeiro; a lista longa de áreas fica por último e recolhível, para não esconder modalidade e estado
 function Filtros({ f, limpar }: { limpar: string; f: { areas: string[]; ufs: string[]; mods: number[]; fontes: string[]; vmin: string; vmax: string; todas: boolean; ordem: string } }) {

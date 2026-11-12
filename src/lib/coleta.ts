@@ -3,10 +3,12 @@ import { createHash } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizar, relevante, paginaPublicacao, paginaPropostaAberta, detalhe, arquivos } from "./pncp";
 import { avisosDoDia, textoDoAviso, montarEdital, diasDou, mesmoNumero, type ItemDou } from "./dou";
+import { ultimaEdicao, localizar, textoDoPdf, avisosDaEdicao, nomeCidade, type EdicaoDosp } from "./dosp";
 
 // Coleta diária de editais no PNCP, em etapas curtas e retomáveis (cada chamada roda ~45s e passa o bastão).
 type Tarefa = { tipo: "pub" | "prop"; data: string; mod: number };
-type Cursor = { fase: "lista" | "dou" | "acomp" | "limpeza"; tarefas: Tarefa[]; i: number; pagina: number; acomp: number; erros: number;
+type Cursor = { fase: "lista" | "dou" | "dosp" | "acomp" | "limpeza";
+  dosp?: { de: number; ate: number; prox: number; fila: EdicaoDosp[] }; tarefas: Tarefa[]; i: number; pagina: number; acomp: number; erros: number;
   dou?: { dias: string[]; d: number; fila: ItemDou[] | null } };
 const idDou = (it: ItemDou) => `DOU-${/(\d+)$/.exec(it.u)?.[1] ?? it.u}`;
 
@@ -73,7 +75,7 @@ export async function executar(sb: SupabaseClient, prazo: number, { nova = false
         c.dou = { dias: diasDou(count ? 2 : 7), d: 0, fila: null };
       }
       const D = c.dou;
-      if (D.d >= D.dias.length) { c.fase = "acomp"; await salvar(); continue; }
+      if (D.d >= D.dias.length) { c.fase = "dosp"; await salvar(); continue; }
       if (!D.fila) {
         const itens = await avisosDoDia(D.dias[D.d]).catch(() => [] as ItemDou[]);
         const ja = new Set<string>();
@@ -96,6 +98,48 @@ export async function executar(sb: SupabaseClient, prazo: number, { nova = false
         // Já veio pelo PNCP? Mesmo município, ano e número: fica só a versão do PNCP, que é mais completa
         if (l.municipio && l.numero) {
           const { data: iguais } = await sb.from("editais").select("numero").eq("fonte", "pncp").eq("ano", l.ano).ilike("municipio", l.municipio).limit(50);
+          if ((iguais ?? []).some((x) => mesmoNumero(x.numero, l.numero))) continue;
+        }
+        novas.push(l);
+      }
+      if (novas.length) {
+        const { error } = await sb.from("editais").upsert(novas, { onConflict: "id" });
+        if (!error) registros += novas.length;
+      }
+      await salvar();
+      continue;
+    }
+
+    if (c.fase === "dosp") {
+      // DOSP / Imprensa Oficial Municipal: percorre os números de edição novos desde a última coleta
+      if (!c.dosp) {
+        const ate = await ultimaEdicao();
+        if (!ate) { c.fase = "acomp"; await salvar(); continue; }
+        const { data: antes } = await sb.from("coleta_execucoes").select("cursor").neq("id", exec.id).order("id", { ascending: false }).limit(20);
+        const ultimo = (antes ?? []).map((x: any) => x.cursor?.dosp?.ate).find((v: any) => typeof v === "number");
+        const de = ultimo ? ultimo + 1 : ate - 1200; // primeira vez: uns 4 dias para trás
+        c.dosp = { de, ate, prox: de, fila: [] };
+        await salvar();
+        continue;
+      }
+      const P = c.dosp;
+      if (P.prox <= P.ate) {
+        const ids = Array.from({ length: Math.min(30, P.ate - P.prox + 1) }, (_, k) => P.prox + k);
+        P.fila.push(...((await Promise.all(ids.map(localizar))).filter(Boolean) as EdicaoDosp[]));
+        P.prox += ids.length;
+        await salvar();
+        continue;
+      }
+      const lote = P.fila.splice(0, 4);
+      if (!lote.length) { c.fase = "acomp"; await salvar(); continue; }
+      const achados = (await Promise.all(lote.map(async (ed) => {
+        const texto = await textoDoPdf(ed.url);
+        return texto ? avisosDaEdicao(ed, texto, await nomeCidade(ed.uf, ed.cidade)) : [];
+      }))).flat();
+      const novas: typeof achados = [];
+      for (const l of achados) {
+        if (l.numero) {
+          const { data: iguais } = await sb.from("editais").select("numero").in("fonte", ["pncp", "dou"]).eq("ano", l.ano).ilike("municipio", l.municipio).limit(80);
           if ((iguais ?? []).some((x) => mesmoNumero(x.numero, l.numero))) continue;
         }
         novas.push(l);

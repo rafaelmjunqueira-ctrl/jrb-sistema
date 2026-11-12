@@ -5,7 +5,7 @@ import { usuarioAtual } from "@/lib/supabase/server";
 import { Shell } from "@/components/shell";
 import { AbasCliente } from "@/components/abas-cliente";
 import { Janela, Enviar, SelectEnvia } from "@/components/interativos";
-import { capitaliza, titulo, prazoInfo, STATUS_ACOMP, NOME_STATUS, SubNavEscritorio } from "@/components/licitacoes";
+import { capitaliza, titulo, prazoInfo, STATUS_ACOMP, NOME_STATUS, SubNavEscritorio, NOME_FONTE } from "@/components/licitacoes";
 import { dataBR, reais } from "@/components/util";
 import { NOME_AREA } from "@/lib/areas";
 import { arquivos, itens, linkPncp } from "@/lib/pncp";
@@ -52,7 +52,7 @@ export async function DetalheEdital({ slug, searchParams, escritorio = false }: 
 
       <article className="folha-elevada p-6 sm:p-8">
         <div className="flex flex-wrap gap-1.5 mb-3">
-          {!pncp && <span className="etiqueta etq-alerta">Diário Oficial da União</span>}
+          {!pncp && <span className="etiqueta etq-alerta">{NOME_FONTE[e.fonte] ?? "Diário oficial"}</span>}
           {e.modalidade && <span className="etiqueta etq-bordo">{e.modalidade}</span>}
           {e.situacao_id !== 1 && <span className={`etiqueta ${e.situacao_id === 4 ? "etq-alerta" : "etq-risco"}`}>{e.situacao}</span>}
           {e.srp && <span className="etiqueta">Registro de preços</span>}
@@ -117,7 +117,7 @@ export async function DetalheEdital({ slug, searchParams, escritorio = false }: 
           {!pncp && e.texto && <section className="folha p-6">
             <h3 className="titulo-secao flex items-center gap-2"><ScrollText size={18} />Texto do aviso</h3>
             <p className="mt-3 text-[15px] leading-relaxed whitespace-pre-line">{e.texto}</p>
-            <p className="text-[12px] discreto mt-3">Publicado no Diário Oficial da União em {dataBR(e.publicado_em)}. As datas e o objeto acima foram lidos automaticamente deste texto: confira no edital.</p>
+            <p className="text-[12px] discreto mt-3">Publicado no {NOME_FONTE[e.fonte]?.toLowerCase().replace("diário", "Diário") ?? "diário oficial"} em {dataBR(e.publicado_em)}. As datas e o objeto acima foram lidos automaticamente deste texto: confira no edital.</p>
           </section>}
           {pncp && <section className="folha p-6">
             <h3 className="titulo-secao">Documentos</h3>
