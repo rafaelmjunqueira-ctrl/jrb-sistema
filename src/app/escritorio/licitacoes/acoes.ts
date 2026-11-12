@@ -8,6 +8,6 @@ export async function coletarAgora() {
   const { perfil } = await usuarioAtual();
   if (!perfil || perfil.papel === "cliente") redirect("/login");
   const ok = await dispararColeta();
-  revalidatePath("/escritorio/licitacoes");
-  redirect(`/escritorio/licitacoes?${ok ? "ok=1" : "erro=1"}`);
+  revalidatePath("/escritorio/licitacoes", "layout");
+  redirect(`/escritorio/licitacoes/acompanhados?${ok ? "ok=1" : "erro=1"}`);
 }

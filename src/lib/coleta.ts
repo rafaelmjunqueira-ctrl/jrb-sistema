@@ -2,10 +2,13 @@ import "server-only";
 import { createHash } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizar, relevante, paginaPublicacao, paginaPropostaAberta, detalhe, arquivos } from "./pncp";
+import { avisosDoDia, textoDoAviso, montarEdital, diasDou, mesmoNumero, type ItemDou } from "./dou";
 
 // Coleta diária de editais no PNCP, em etapas curtas e retomáveis (cada chamada roda ~45s e passa o bastão).
 type Tarefa = { tipo: "pub" | "prop"; data: string; mod: number };
-type Cursor = { fase: "lista" | "acomp" | "limpeza"; tarefas: Tarefa[]; i: number; pagina: number; acomp: number; erros: number };
+type Cursor = { fase: "lista" | "dou" | "acomp" | "limpeza"; tarefas: Tarefa[]; i: number; pagina: number; acomp: number; erros: number;
+  dou?: { dias: string[]; d: number; fila: ItemDou[] | null } };
+const idDou = (it: ItemDou) => `DOU-${/(\d+)$/.exec(it.u)?.[1] ?? it.u}`;
 
 const MODS = [6, 4, 7, 5, 8, 12, 3, 2];
 const ymd = (d: Date) => new Date(d.getTime() - 3 * 3600000).toISOString().slice(0, 10).replace(/-/g, "");
@@ -47,7 +50,7 @@ export async function executar(sb: SupabaseClient, prazo: number, { nova = false
   while (Date.now() < prazo) {
     if (c.fase === "lista") {
       const t = c.tarefas[c.i];
-      if (!t) { c.fase = "acomp"; continue; }
+      if (!t) { c.fase = "dou"; continue; }
       let r: any = null;
       try {
         r = t.tipo === "pub" ? await paginaPublicacao(t.data, t.mod, c.pagina) : await paginaPropostaAberta(t.data, t.mod, c.pagina);
@@ -63,11 +66,54 @@ export async function executar(sb: SupabaseClient, prazo: number, { nova = false
       continue;
     }
 
+    if (c.fase === "dou") {
+      // Diário Oficial da União, seção 3: avisos de prefeituras, estados e conselhos (primeira vez: 7 dias; depois, ontem e hoje)
+      if (!c.dou) {
+        const { count } = await sb.from("editais").select("id", { count: "exact", head: true }).eq("fonte", "dou");
+        c.dou = { dias: diasDou(count ? 2 : 7), d: 0, fila: null };
+      }
+      const D = c.dou;
+      if (D.d >= D.dias.length) { c.fase = "acomp"; await salvar(); continue; }
+      if (!D.fila) {
+        const itens = await avisosDoDia(D.dias[D.d]).catch(() => [] as ItemDou[]);
+        const ja = new Set<string>();
+        for (let k = 0; k < itens.length; k += 150) {
+          const { data } = await sb.from("editais").select("id").in("id", itens.slice(k, k + 150).map(idDou));
+          for (const r of data ?? []) ja.add(r.id);
+        }
+        D.fila = itens.filter((it) => !ja.has(idDou(it)));
+        await salvar();
+        continue;
+      }
+      const lote = D.fila.splice(0, 8);
+      if (!lote.length) { D.d++; D.fila = null; await salvar(); continue; }
+      const linhas = (await Promise.all(lote.map(async (it) => {
+        const texto = await textoDoAviso(it.u).catch(() => null);
+        return texto ? montarEdital(it, texto) : null;
+      }))).filter(Boolean) as ReturnType<typeof montarEdital>[];
+      const novas: typeof linhas = [];
+      for (const l of linhas) {
+        // Já veio pelo PNCP? Mesmo município, ano e número: fica só a versão do PNCP, que é mais completa
+        if (l.municipio && l.numero) {
+          const { data: iguais } = await sb.from("editais").select("numero").eq("fonte", "pncp").eq("ano", l.ano).ilike("municipio", l.municipio).limit(50);
+          if ((iguais ?? []).some((x) => mesmoNumero(x.numero, l.numero))) continue;
+        }
+        novas.push(l);
+      }
+      if (novas.length) {
+        const { error } = await sb.from("editais").upsert(novas, { onConflict: "id" });
+        if (!error) registros += novas.length;
+      }
+      await salvar();
+      continue;
+    }
+
     if (c.fase === "acomp") {
       // Editais acompanhados por algum cliente: confere alterações no PNCP
       const corte = new Date(Date.now() - 7 * 86400000).toISOString();
       const { data: ac } = await sb.from("edital_acompanhamentos").select("edital_id, editais!inner(*)")
         .or(`encerramento_em.gte.${corte},encerramento_em.is.null`, { referencedTable: "editais" })
+        .eq("editais.fonte", "pncp")
         .order("edital_id").range(c.acomp, c.acomp + 9);
       const vistos = new Set<string>();
       for (const a of ac ?? []) {
@@ -86,6 +132,10 @@ export async function executar(sb: SupabaseClient, prazo: number, { nova = false
     let q = sb.from("editais").delete().lt("encerramento_em", corte);
     if (manter.length) q = q.not("id", "in", `(${manter.map((m) => `"${m}"`).join(",")})`);
     await q;
+    // Avisos de diário sem data de propostas: saem 60 dias depois de publicados
+    let q2 = sb.from("editais").delete().neq("fonte", "pncp").is("encerramento_em", null).lt("publicado_em", new Date(Date.now() - 60 * 86400000).toISOString());
+    if (manter.length) q2 = q2.not("id", "in", `(${manter.map((m) => `"${m}"`).join(",")})`);
+    await q2;
     await sb.from("coleta_execucoes").delete().lt("iniciada_em", new Date(Date.now() - 30 * 86400000).toISOString());
     await salvar({ status: "ok", terminada_em: new Date().toISOString(), mensagem: `${registros} editais coletados` });
     return { terminou: true };

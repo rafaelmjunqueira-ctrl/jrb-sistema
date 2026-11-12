@@ -13,7 +13,7 @@ export async function alternarAcompanhamento(f: FormData) {
   const { data: ja } = await sb.from("edital_acompanhamentos").select("id").eq("cliente_id", cid).eq("edital_id", eid).maybeSingle();
   if (ja) await sb.from("edital_acompanhamentos").delete().eq("id", ja.id);
   else await sb.from("edital_acompanhamentos").insert({ cliente_id: cid, edital_id: eid });
-  revalidatePath("/cliente/licitacoes", "layout");
+  revalidatePath("/cliente/licitacoes", "layout"); revalidatePath("/escritorio/licitacoes", "layout");
   redirect(voltaSegura(f.get("volta"), `/cliente/licitacoes?c=${cid}`));
 }
 

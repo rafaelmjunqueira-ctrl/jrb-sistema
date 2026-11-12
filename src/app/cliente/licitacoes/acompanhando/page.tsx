@@ -19,7 +19,7 @@ export default async function Acompanhando({ searchParams }: { searchParams: { c
   if (!atual) redirect("/cliente");
   const cid = atual.id;
   const { data: ac } = await sb.from("edital_acompanhamentos")
-    .select("status,nota,visto_em,edital_id,editais(id,orgao_cnpj,ano,sequencial,objeto,orgao_nome,municipio,uf,valor_estimado,encerramento_em,situacao_id,situacao,modalidade)")
+    .select("status,nota,visto_em,edital_id,editais(id,fonte,orgao_cnpj,ano,sequencial,objeto,orgao_nome,municipio,uf,valor_estimado,encerramento_em,situacao_id,situacao,modalidade)")
     .eq("cliente_id", cid);
   const ids = (ac ?? []).map((a) => a.edital_id);
   const { data: evs } = ids.length ? await sb.from("edital_eventos").select("edital_id,criado_em").in("edital_id", ids) : { data: [] as any[] };
