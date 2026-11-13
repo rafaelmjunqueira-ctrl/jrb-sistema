@@ -28,7 +28,7 @@ function proximaUrl(req: Request) {
 // Coleta parada no meio (sem sinal há mais de 3 minutos)? Qualquer chamada pode retomá-la; começar uma nova continua exigindo autorização.
 async function parada(sb: NonNullable<ReturnType<typeof supabaseAdmin>>) {
   const { data } = await sb.from("coleta_execucoes").select("status,pulso_em").order("id", { ascending: false }).limit(1).maybeSingle();
-  return data?.status === "rodando" && Date.now() - new Date(data.pulso_em).getTime() > 180_000;
+  return data?.status === "rodando" && Date.now() - new Date(data.pulso_em).getTime() > 100_000;
 }
 
 async function iniciar(req: Request) {

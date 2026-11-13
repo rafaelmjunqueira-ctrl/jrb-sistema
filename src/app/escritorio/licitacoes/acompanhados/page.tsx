@@ -23,7 +23,7 @@ export default async function LicitacoesEscritorio({ searchParams }: { searchPar
   ]);
   if (!execs?.length && !total) await dispararColeta();
   // Coleta que ficou parada no meio: abrir esta tela já manda continuar
-  else if (execs?.[0]?.status === "rodando" && Date.now() - new Date(execs[0].pulso_em).getTime() > 180_000) await dispararColeta();
+  else if (execs?.[0]?.status === "rodando" && Date.now() - new Date(execs[0].pulso_em).getTime() > 240_000) await dispararColeta();
   const ult = execs?.[0];
   const rodando = ult?.status === "rodando" && Date.now() - new Date(ult.pulso_em).getTime() < 3 * 60_000;
   const ativos = (ac ?? []).filter((a: any) => a.editais && !["descartado", "ganhamos"].includes(a.status))

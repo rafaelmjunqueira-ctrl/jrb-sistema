@@ -195,6 +195,8 @@ export async function executar(sb: SupabaseClient, prazo: number, { nova = false
     await salvar({ status: "ok", terminada_em: new Date().toISOString(), mensagem: `${registros} editais coletados` });
     return { terminou: true };
   }
+  // Fim da rodada: libera a vez (o "sinal" fica antigo) para a próxima rodada, chamada logo em seguida, não achar que ainda há outra rodando
+  await sb.from("coleta_execucoes").update({ cursor: c, registros, pulso_em: new Date(Date.now() - 120_000).toISOString() }).eq("id", exec.id);
   return { terminou: false };
 }
 
