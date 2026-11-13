@@ -24,9 +24,9 @@ const dmy = (d: Date) => { const b = new Date(d.getTime() - 3 * 3600000); return
 export const diasDou = (n: number) => Array.from({ length: n }, (_, i) => dmy(new Date(Date.now() - (n - 1 - i) * 86400000)));
 
 async function pegarTexto(url: string) {
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 2; i++) {
     try {
-      const r = await fetch(url, { cache: "no-store", headers: { "User-Agent": UA, Accept: "text/html" }, signal: AbortSignal.timeout(20000) });
+      const r = await fetch(url, { cache: "no-store", headers: { "User-Agent": UA, Accept: "text/html" }, signal: AbortSignal.timeout(12000) });
       if (r.ok) return await r.text();
       if (r.status === 404) return null;
     } catch { /* tenta de novo */ }

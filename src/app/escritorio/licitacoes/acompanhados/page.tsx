@@ -22,6 +22,8 @@ export default async function LicitacoesEscritorio({ searchParams }: { searchPar
     sb.from("edital_acompanhamentos").select("status,visto_em,edital_id,cliente_id,clientes(nome),editais(id,fonte,orgao_cnpj,ano,sequencial,objeto,orgao_nome,uf,encerramento_em,situacao_id,situacao)").order("criado_em", { ascending: false }).limit(200),
   ]);
   if (!execs?.length && !total) await dispararColeta();
+  // Coleta que ficou parada no meio: abrir esta tela já manda continuar
+  else if (execs?.[0]?.status === "rodando" && Date.now() - new Date(execs[0].pulso_em).getTime() > 180_000) await dispararColeta();
   const ult = execs?.[0];
   const rodando = ult?.status === "rodando" && Date.now() - new Date(ult.pulso_em).getTime() < 3 * 60_000;
   const ativos = (ac ?? []).filter((a: any) => a.editais && !["descartado", "ganhamos"].includes(a.status))

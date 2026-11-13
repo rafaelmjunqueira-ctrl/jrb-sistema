@@ -35,6 +35,10 @@ async function novoCursor(sb: SupabaseClient): Promise<Cursor> {
 const fmt = (iso?: string | null) => iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "sem data";
 const brl = (v?: number | null) => v == null ? "não informado" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+// Espera a tarefa só até perto do fim do tempo da rodada; se não der, devolve null (a rodada salva e passa a vez para a próxima)
+const noPrazo = <T,>(p: Promise<T>, prazo: number) =>
+  Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), Math.max(0, prazo - Date.now() - 2000)))]);
+
 export async function executar(sb: SupabaseClient, prazo: number, { nova = false } = {}) {
   const { data: ultima } = await sb.from("coleta_execucoes").select("*").order("id", { ascending: false }).limit(1).maybeSingle();
   if (ultima?.status === "rodando" && Date.now() - new Date(ultima.pulso_em).getTime() < 90_000) return { ocupado: true, terminou: false };
@@ -77,7 +81,8 @@ export async function executar(sb: SupabaseClient, prazo: number, { nova = false
       const D = c.dou;
       if (D.d >= D.dias.length) { c.fase = "dosp"; await salvar(); continue; }
       if (!D.fila) {
-        const itens = await avisosDoDia(D.dias[D.d]).catch(() => [] as ItemDou[]);
+        const itens = await noPrazo(avisosDoDia(D.dias[D.d]).catch(() => [] as ItemDou[]), prazo);
+        if (!itens) break;
         const ja = new Set<string>();
         for (let k = 0; k < itens.length; k += 150) {
           const { data } = await sb.from("editais").select("id").in("id", itens.slice(k, k + 150).map(idDou));
@@ -89,10 +94,12 @@ export async function executar(sb: SupabaseClient, prazo: number, { nova = false
       }
       const lote = D.fila.splice(0, 8);
       if (!lote.length) { D.d++; D.fila = null; await salvar(); continue; }
-      const linhas = (await Promise.all(lote.map(async (it) => {
+      const lidas = await noPrazo(Promise.all(lote.map(async (it) => {
         const texto = await textoDoAviso(it.u).catch(() => null);
         return texto ? montarEdital(it, texto) : null;
-      }))).filter(Boolean) as ReturnType<typeof montarEdital>[];
+      })), prazo);
+      if (!lidas) { D.fila.unshift(...lote); await salvar(); break; }
+      const linhas = lidas.filter(Boolean) as ReturnType<typeof montarEdital>[];
       const novas: typeof linhas = [];
       for (const l of linhas) {
         // Já veio pelo PNCP? Mesmo município, ano e número: fica só a versão do PNCP, que é mais completa
@@ -113,7 +120,7 @@ export async function executar(sb: SupabaseClient, prazo: number, { nova = false
     if (c.fase === "dosp") {
       // DOSP / Imprensa Oficial Municipal: percorre os números de edição novos desde a última coleta
       if (!c.dosp) {
-        const ate = await ultimaEdicao();
+        const ate = await noPrazo(ultimaEdicao(), prazo);
         if (!ate) { c.fase = "acomp"; await salvar(); continue; }
         const { data: antes } = await sb.from("coleta_execucoes").select("cursor").neq("id", exec.id).order("id", { ascending: false }).limit(20);
         const ultimo = (antes ?? []).map((x: any) => x.cursor?.dosp?.ate).find((v: any) => typeof v === "number");
@@ -125,17 +132,21 @@ export async function executar(sb: SupabaseClient, prazo: number, { nova = false
       const P = c.dosp;
       if (P.prox <= P.ate) {
         const ids = Array.from({ length: Math.min(30, P.ate - P.prox + 1) }, (_, k) => P.prox + k);
-        P.fila.push(...((await Promise.all(ids.map(localizar))).filter(Boolean) as EdicaoDosp[]));
+        const achadas = await noPrazo(Promise.all(ids.map(localizar)), prazo);
+        if (!achadas) break;
+        P.fila.push(...(achadas.filter(Boolean) as EdicaoDosp[]));
         P.prox += ids.length;
         await salvar();
         continue;
       }
       const lote = P.fila.splice(0, 4);
       if (!lote.length) { c.fase = "acomp"; await salvar(); continue; }
-      const achados = (await Promise.all(lote.map(async (ed) => {
+      const lidos = await noPrazo(Promise.all(lote.map(async (ed) => {
         const texto = await textoDoPdf(ed.url);
         return texto ? avisosDaEdicao(ed, texto, await nomeCidade(ed.uf, ed.cidade)) : [];
-      }))).flat();
+      })), prazo);
+      if (!lidos) { P.fila.unshift(...lote); await salvar(); break; }
+      const achados = lidos.flat();
       const novas: typeof achados = [];
       for (const l of achados) {
         if (l.numero) {
