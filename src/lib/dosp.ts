@@ -30,8 +30,9 @@ export async function textoDoPdf(url: string): Promise<string | null> {
   try {
     const r = await fetch(url, { cache: "no-store", headers: { "User-Agent": UA, Accept: "application/pdf" }, signal: AbortSignal.timeout(20000) });
     if (!r.ok || !/pdf/.test(r.headers.get("content-type") ?? "")) return null;
+    if (Number(r.headers.get("content-length") ?? 0) > 15_000_000) return null; // edições gigantes (escaneadas) ficam de fora
     const buf = new Uint8Array(await r.arrayBuffer());
-    if (buf.length > 40_000_000) return null;
+    if (buf.length > 15_000_000) return null;
     const pdf = await getDocumentProxy(buf);
     const { text } = await extractText(pdf, { mergePages: true });
     // Junta palavras escritas com letras espaçadas (ex.: "H I G I E N I Z A Ç Ã O")

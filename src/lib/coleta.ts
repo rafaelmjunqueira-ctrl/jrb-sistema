@@ -139,8 +139,10 @@ export async function executar(sb: SupabaseClient, prazo: number, { nova = false
         await salvar();
         continue;
       }
-      const lote = P.fila.splice(0, 4);
-      if (!lote.length) { c.fase = "acomp"; await salvar(); continue; }
+      if (!P.fila.length) { c.fase = "acomp"; await salvar(); continue; }
+      // Ler PDF pesa: só começa um novo se sobrar tempo folgado na rodada
+      if (prazo - Date.now() < 22_000) break;
+      const lote = P.fila.splice(0, 2);
       const lidos = await noPrazo(Promise.all(lote.map(async (ed) => {
         const texto = await textoDoPdf(ed.url);
         return texto ? avisosDaEdicao(ed, texto, await nomeCidade(ed.uf, ed.cidade)) : [];
